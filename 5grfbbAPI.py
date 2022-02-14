@@ -28,8 +28,9 @@ import time
 
 from tools.Classes import ForecastingJob
 from tools.externalConnections import ExternalConnections
-from tools.adapters import mconverter, instancecheck
+from tools.adapters import mconverter, instancecheck, ilmapper
 
+devel = True
 # New API implemented
 # Start job
 # POST http://127.0.0.1:8888/Forecasting/
@@ -196,6 +197,7 @@ class CustomCollector(object):
                         labels = [cpu, mode, instance]
                         gmf = GaugeMetricFamily(parameter, "avg_" + parameter, labels=['cpu', 'mode', 'instance'])
                         gmf.add_metric(labels, value['value'])
+                        #gmf.add_metric(labels, "%.2f" % float(value['value']))
                         metrics.append(gmf)
             else:
                 if "cpu" or "CPU" or "Cpu" in parameter:
@@ -243,24 +245,25 @@ class _Forecasting(Resource):
         metricSO = request_data['performanceMetric']
         nsdid = request_data['nsdId']
         ilSO = request_data['IL']
-        '''
+
         #easyfix for the il detection 
-        il = 0
+        il = ilmapper(ilSO)
         if "il_small" in ilSO:
             il = 1
         elif "il_big" in ilSO:
             il = 2
-        '''
 
-        log.debug("Forecasting API: considered IL={}".format(str(il)))
         # dynamic request_id creation
-        req_id = uuid.uuid1()
-        # static id (only for development purpose)
-        # req_id = "1aa0c8e6-c26e-11eb-a8ba-782b46c1eefd"
+        # todo: development check with no mon platform
+        if not devel:
+            req_id = uuid.uuid1()
+        else:
+            # static id (only for development purpose)
+            req_id = "1aa0c8e6-c26e-11eb-a8ba-782b46c1eefd"
 
-        reqs[str(req_id)] = {'nsId': nsid, 'vnfdId': vnfdid, 'IL': il, 'nsdId': nsdid, 'instance_name': None,
-                             'performanceMetric': None, 'isActive': True, 'scraperJob': None,
-                             'kafkaTopic': None, 'prometheusJob': None, 'model': None, }
+        reqs[str(req_id)] = {'nsId': nsid, 'vnfdId': vnfdid, 'IL': il, 'nsdId': nsdid, 'instance_name': "",
+                             'performanceMetric': "", 'isActive': True, 'scraperJob': [],
+                             'kafkaTopic': None, 'prometheusJob': None, 'model': None, 'metrics': {}}
         log.debug('Forecasting API: DB updated with new job id ' + str(req_id))
 
         # create kafka topic and update reqs dict
@@ -268,16 +271,19 @@ class _Forecasting(Resource):
         if topic != 0:
             log.info('Forecasting API: topic ' + topic + ' created')
         else:
-            log.info('Forecasting API: topic not created')
-            reqs[str(req_id)] = {'isActive': False}
-            return "Kafka topic not created, aborting", 403
+            if devel:
+                topic = 'fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting'
+            else:
+                log.info('Forecasting API: topic not created')
+                reqs[str(req_id)]['isActive'] = False
+                return "Kafka topic not created, aborting", 403
+
         reqs[str(req_id)]['kafkaTopic'] = topic
         metric = mconverter(metricSO)
         reqs[str(req_id)]['performanceMetric'] = metric
         if metric is None:
             return "Problem converting the metric", 403
         # create scraper job and update the reqs dict
-        #expression = ""
         if "node_cpu_seconds_total" in metric:
             '''
                node_cpu_seconds_total{ cpu = "0", exporter = "node_exporter", forecasted = "no", instance = "dtdtvvnf-1",
@@ -285,6 +291,12 @@ class _Forecasting(Resource):
                          nsId = "fgt-4f61c57-9ce2-441e-9919-7674dda57c9d", vnfdId = "dtdtvvnf"}
             '''
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", mode=\"idle\", forecasted=\"no\"}"
+            #reqs[str(req_id)]['metrics'][('node_cpu_seconds_total', vnfdid)] = expression
+            reqs[str(req_id)]['metrics'][('rtt_latency', 'dtdtvvnf')] = 'rtt_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            #reqs[str(req_id)]['metrics'][('upstream_latency', 'dtdtvvnf')] = 'upstream_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            #reqs[str(req_id)]['metrics'][('packet_lost','dtdtvvnf')] = 'packet_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            reqs[str(req_id)]['metrics'][('total_cmd_sent', 'dtdtvvnf')] = 'tottal_cmd_sent{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            reqs[str(req_id)]['metrics'][('total_cmd_lost', 'dtdtvvnf')] = 'tottal_cmd_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
         elif "app_latency" in metric:
             '''
                 app_latency example
@@ -297,82 +309,108 @@ class _Forecasting(Resource):
             # exporter = "app_latencydt_exporter", forecasted = "no", robot_id = "10.10.10.221", vnfdId = "dtdtvvnf"}
         else:
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", forecasted=\"no\"}"
-            # expressin = "avg((1 - avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\",nsId=\"fgt-8fbe460-6b51-4295-b1db-b5f323ec18c4\",vnfdId=\"spr2\"}[1m]))) * 100)"
-        sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnfdid, metric=metric,
+
+        # todo: development check with no mon platform
+        if not devel:
+            sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnfdid, metric=metric,
                                  expression=expression, period=15)
-        if sId is not None:
-            # print("scraper job "+ str(sId)+ " started")
-            log.info('Forecasting API: scraper job ' + sId + ' created')
+            reqs[str(req_id)]['scraperJob'].append(sId)
+            if sId is not None:
+                # print("scraper job "+ str(sId)+ " started")
+                log.info('Forecasting API: scraper job ' + sId + ' created')
+            else:
+                ec.deleteKafkaTopic(topic)
+                reqs[str(req_id)] = {'isActive': False}
+                return "Scraper job not created aborting", 403
+
+        #simple mapping
+        if nsdid == "DTwin" and metric == "node_cpu_seconds_total":
+            model_forecasting = "lstmCPUEnhanced"
         else:
-            ec.deleteKafkaTopic(topic)
-            reqs[str(req_id)] = {'isActive': False}
-            return "Scraper job not created aborting", 403
-        # TODO
-        # mapping algorithm
-        # model_forecasting = "Test"
-        model_forecasting = "lstm"
+            model_forecasting = "lstmCPUBase"
 
         reqs[str(req_id)]['model'] = model_forecasting
         log.debug('Forecasting API: Model selected ' + model_forecasting)
-        # TODO: connect to AIML
-        # download the model form AI/ML platform
-        # logging.info('Forecasting API: model ' + model_forecasting + ' downloaded from AIMLP')
 
-        instances = instancecheck(ec.createKafkaConsumer(req_id, topic), log, 60)
-        il = len(instances)
+        #todo: to be veryfied: #automatic instance detection
+        #instances = instancecheck(ec.createKafkaConsumer(req_id, topic), 30, log)
+        #il = len(instances)
+
+        #simple assumption that we start with 1 instance
+        instances = [vnfdid+'-'+str(il)]
+        log.info("Forecasting API: considered IL={}".format(str(il)))
+        #start the scraper for the additional application metrics
+        # todo: development check with no mon platform
+        if not devel:
+            for vnf, expr in reqs[str(req_id)]['metrics'].keys():
+                sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnf, metric=metric,
+                                             expression=expr, period=15)
+                reqs[str(req_id)]['scraperJob'].append(sId)
+
         # single instance case
         if il == 1:
             log.debug('Forecasting API: Single instance detected')
             fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
             log.debug('Forecasting API: forecasting job created ' + fj.str())
             # fj.set_model(1, 1, True, 'trainedModels/lstm11.h5')
-            fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
+            steps_back = 10
+            steps_forw = 4
+            modelName = 'trainedModels/lstm'+str(steps_back)+'_'+str(steps_forw)+'.h5'
+            features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+            main_feature = 'cpu0'
+
+            fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
             event = Event()
-            t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(req_id, topic)))
+            t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
             t.start()
-            active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event}
-            reqs[str(req_id)] = {'instance_name': instances[0]}
+            active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
+            reqs[str(req_id)]['instance_name'] = instances[0]
         # in case of multiple instances
+        # todo: to be verified in case of multiple attivation for the robot classification
         else:
             log.debug("Forecasting API: {} instances detected".format(str(il)))
-            i = 0
-            for instance in instances.sort():
-                if i == 0:
-                    # main instance
-                    fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instance)
+            instances = []
+
+            for i in range(1, il+1):
+                instance = vnfdid + '-' + str(i)
+                instances.append(instance)
+                fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, i, instance)
+                fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
+                steps_back = 10
+                steps_forw = 4
+                modelName = 'trainedModels/lstm' + str(steps_back) + '_' + str(steps_forw) + '.h5'
+                features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+                main_feature = 'cpu0'
+                fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
+                event = Event()
+                t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(i, topic), False))
+                t.start()
+                # main instance
+                if i == 1:
                     log.debug('Forecasting API: Main forecasting job created ' + fj.str())
-                    # fj.set_model(1, 1, True, 'trainedModels/lstm11.h5')
-                    fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
-                    event = Event()
-                    t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(req_id, topic)))
-                    t.start()
                     active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
-                    i = i + 1
                 else:
-                    fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instance)
                     log.debug('Forecasting API: sub forecasting job created ' + fj.str())
-                    # fj.set_model(1, 1, True, 'trainedModels/lstm11.h5')
-                    fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
-                    event = Event()
-                    t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(req_id, topic)))
-                    t.start()
                     active_jobs[str(req_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
-                    i = i + 1
+                i = i + 1
 
         # create Prometheus job pointing to the exporter
-        pId = ec.startPrometheusJob(vnfdid, nsid, 15, req_id)
-        if pId is not None:
-            # print("Prometheus job "+ str(pId)+ " started")
-            log.info('Forecasting API: Prometheus job ' + pId + ' created')
-        else:
-            ec.deleteKafkaTopic(topic)
-            ec.stopScraperJob(sId)
-            reqs[str(req_id)] = {'isActive': False}
-            return "Prometheus job not created aborting", 403
-        # print("pj=\""+ str(pId)+ "\"")
-        # print("sj=\""+ str(sId)+ "\"")
-        reqs[str(req_id)]['prometheusJob'] = pId
-        reqs[str(req_id)]['scraperJob'] = sId
+
+        #todo: development check with no mon platform
+        if not devel:
+            pId = ec.startPrometheusJob(vnfdid, nsid, 15, req_id)
+            if pId is not None:
+                # print("Prometheus job "+ str(pId)+ " started")
+                log.info('Forecasting API: Prometheus job ' + pId + ' created')
+            else:
+                ec.deleteKafkaTopic(topic)
+                ec.stopScraperJob(sId)
+                reqs[str(req_id)] = {'isActive': False}
+                return "Prometheus job not created aborting", 403
+        
+            # print("pj=\""+ str(pId)+ "\"")
+            # print("sj=\""+ str(sId)+ "\"")
+            reqs[str(req_id)]['prometheusJob'] = pId
         return str(req_id), 200
 
     @staticmethod
@@ -393,6 +431,7 @@ class _ForecastingDeleter(Resource):
     def delete(job_id):
         global active_jobs
         global reqs
+
         log.info('Forecasting API: request to stop forecasting job ' + job_id + ' received')
         if str(job_id) in active_jobs.keys():
             element = active_jobs[str(job_id)]
@@ -400,17 +439,27 @@ class _ForecastingDeleter(Resource):
             event = element.get('kill_event')
             event.set()
             thread.join()
+            #stop related sub_jobs
+            if len(active_jobs[str(job_id)]['subJobs'].keys())> 0:
+                for inst in active_jobs[str(job_id)]['subJobs'].keys():
+                    sjob = active_jobs[str(job_id)]['subJobs'][inst]
+                    thread = sjob.get('thread')
+                    event = sjob.get('kill_event')
+                    event.set()
+                    thread.join()
             active_jobs.pop(str(job_id))
             pj = reqs[str(job_id)].get('prometheusJob')
-            sj = reqs[str(job_id)].get('scraperJob')
+            sjs = reqs[str(job_id)].get('scraperJob')
 
-            # delete Prometheus job pointing to the exporter
-            ec.stopPrometheusJob(pj)
-            log.info('Forecasting API: deleted Prometheus job')
+            if not devel:
+                # delete Prometheus job pointing to the exporter
+                ec.stopPrometheusJob(pj)
+                log.info('Forecasting API: deleted Prometheus job')
 
-            # delete scraper job and update the reqs model
-            ec.stopScraperJob(sj)
-            log.info('Forecasting API: deleted scraper job')
+                # delete scraper job and update the reqs model
+                for sj in sjs:
+                    ec.stopScraperJob(sj)
+                    log.info('Forecasting API: deleted scraper job')
 
             # delete kafla topic and update reqs dict
             topic = reqs[str(job_id)].get('kafkaTopic')
@@ -438,17 +487,86 @@ class _ForecastingDeleter(Resource):
             return 'Forecasting job not found', 404
 
 
-@restApi.route('/Forecasting/<string:job_id>/<string:il>')
+@restApi.route('/Forecasting/<string:job_id>/<string:ilv>')
 @restApi.response(200, 'Success')
 @restApi.response(404, 'not found')
 class _ForecastingSetIL(Resource):
     @staticmethod
-    def put(job_id, il):
+    def put(job_id, ilv):
         global active_jobs
         global reqs
         if str(job_id) in reqs.keys():
             oldIL = reqs[str(job_id)].get('IL')
+            log.debug("Forecasting API: {} instances detected".format(str(ilv)))
+            '''
+                    reqs[str(req_id)] = {'nsId': nsid, 'vnfdId': vnfdid, 'IL': 0, 'nsdId': nsdid, 'instance_name': "",
+                             'performanceMetric': None, 'isActive': True, 'scraperJob': [],
+                             'kafkaTopic': None, 'prometheusJob': None, 'model': None, 'metrics': {} }
+            '''
+            #todo: check the value passed in case of scaling (+1 or absolute value?)
+            ilval = ilmapper(ilv)
+            il = 0
+            if ilval == 1:
+                il = oldIL - 1
+            elif ilval == 2:
+                il = oldIL + 1
             reqs[str(job_id)]['IL'] = il
+
+            nsdid = reqs[str(job_id)]['nsdId']
+            model_forecasting = reqs[str(job_id)]['model']
+            metric = reqs[str(job_id)].get('performanceMetric')
+            topic = reqs[str(job_id)]['kafkaTopic']
+
+            vnfdid = reqs[str(job_id)]['vnfdId']
+
+            if oldIL < il:
+                log.info("Scaling up the forecastng jobs for nsid {} and metric {}".format(nsdid, metric))
+                instance = vnfdid + '-' + str(il)
+                fj = ForecastingJob(job_id, nsdid, model_forecasting, metric, il, instance)
+                fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
+                steps_back = 10
+                steps_forw = 4
+                modelName = 'trainedModels/lstm' + str(steps_back) + '_' + str(steps_forw) + '.h5'
+                features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+                main_feature = 'cpu0'
+                fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
+                event = Event()
+                t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
+                t.start()
+                log.debug('Forecasting API: sub forecasting job created ' + fj.str())
+
+                # disabling the data acquisition from other jobs and get robots already configured
+                # active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
+                print(active_jobs[str(job_id)]['job'].get_robots())
+                active_robs = []
+                active_robs = active_robs + active_jobs[str(job_id)]['job'].get_robots()
+                active_jobs[str(job_id)]['job'].set_update_robots(False)
+                log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['job'].instance_name))
+                log.debug("Scaling, active robots: {} ".format(active_robs))
+                for instance in active_jobs[str(job_id)]['subJobs'].keys():
+                    active_robs = active_robs + active_jobs[str(job_id)]['subJobs'][instance]['job'].get_robots()
+                    active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(False)
+                    log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['subJobs'][instance]['job'].instance_name))
+                log.debug("Scaling, active robots: {} ".format(active_robs))
+
+                #adding the new subjob
+                active_jobs[str(job_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
+                fj.set_other_robots(active_robs)
+
+            if oldIL > il:
+                if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
+                    instanceold = vnfdid + '-' + str(oldIL)
+                    instance = vnfdid + '-' + str(il)
+                    sjob = active_jobs[str(job_id)]['subJobs'][instanceold]
+                    thread = sjob.get('thread')
+                    event = sjob.get('kill_event')
+                    event.set()
+                    thread.join()
+                    del active_jobs[str(job_id)]['subJobs'][instanceold]
+                    if instance in active_jobs[str(job_id)]['subJobs'].keys():
+                        active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(True)
+                    else:
+                        active_jobs[str(job_id)]['job'].set_update_robots(True)
 
             log.info('Forecasting API: IL for job ' + job_id + ' updated to value ' + str(il))
             return 'Instantiation level updated', 200
@@ -488,14 +606,15 @@ class _PrometheusExporter(Resource):
         value = 0
         if f.get_model() == "Test":
             value = f.get_forecasting_value(None)
-        elif f.get_model() == "lstm":
+        elif f.get_model() == "lstmCPUBase":
             value = f.get_forecasting_value(5, 2)
+        elif f.get_model() == "lstmCPUEnhanced":
+            value = f.get_forecasting_value(10, 4)
         metric = reqs[str(job_id)].get('performanceMetric')
         if testForecasting == 0:
             # creating replicas for the average data
             if "cpu" or "CPU" or "Cpu" in metric:
                 names = f.get_names()
-                # print(names)
                 for instance in names.keys():
                     for c in range(0, len(names[instance]['cpus'])):
                         cpu = str(names[instance]['cpus'][c])
@@ -566,6 +685,49 @@ class _PrometheusExporter(Resource):
                         # print("push")
                         # print(data[id].qsize())
 
+        #subjobs
+        if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
+            sfjs = active_jobs[str(job_id)]['subJobs']
+            for instance in sfjs.keys():
+                value = 0
+                f = active_jobs[str(job_id)]['subJobs'][instance]['job']
+                if f.get_model() == "Test":
+                    value = f.get_forecasting_value(None)
+                elif f.get_model() == "lstmCPUBase":
+                    value = f.get_forecasting_value(5, 2)
+                elif f.get_model() == "lstmCPUEnhanced":
+                    value = f.get_forecasting_value(10, 4)
+                metric = reqs[str(job_id)].get('performanceMetric')
+                if testForecasting == 0:
+                    # creating replicas for the average data
+                    if "cpu" or "CPU" or "Cpu" in metric:
+                        names = f.get_names()
+                        print(names)
+                        for instancex in names.keys():
+                            for c in range(0, len(names[instancex]['cpus'])):
+                                cpu = str(names[instancex]['cpus'][c])
+                                mode = str(names[instancex]['modes'][c])
+                                timestamp = str(names[instancex]['timestamp'][c])
+                                return_data = {
+                                    'job': job_id,
+                                    'metric': metric,
+                                    'name': instance,
+                                    'cpu': cpu,
+                                    'mode': mode,
+                                    'timestamp': round(float(timestamp), 2) + 15.0,
+                                    str(metric): value
+                                }
+
+                                return_data_str = json.dumps(return_data)
+                                json_obj2 = json.loads(return_data_str)
+                                if json_obj2['job'] not in data.keys():
+                                    data[jobid] = multiprocessing.Queue()
+                                # print(return_data_str)
+                                data[jobid].put(json_obj2)
+                                # print("push")
+                                # print(data[id].qsize())
+
+
         time.sleep(0.1)
         cc.set_parameters(jobid)
         reply = generate_latest(REGISTRY)
@@ -587,6 +749,7 @@ if __name__ == '__main__':
         ip = config['local']['localIP']
         port = config['local']['localPort']
         testForecasting = int(config['local']['testingEnabled'])
+        devel = True if int(config['local']['development']) == 1 else False
     else:
         port = PORT
     if 'AIML' in config:

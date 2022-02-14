@@ -2,6 +2,19 @@ import time
 from confluent_kafka import KafkaError, KafkaException
 import json
 from confluent_kafka.error import ConsumeError
+import logging
+
+log = logging.getLogger("Adapters")
+
+
+def ilmapper(ilSO):
+    il = 0
+    if "il_small" in ilSO:
+        return 1
+    elif "il_big" in ilSO:
+        return 2
+    else:
+        return int(ilSO)
 
 
 def mconverter(value):
@@ -62,10 +75,12 @@ def instancecheck(consumer, duration, log):
                 elif msg.error():
                     raise KafkaException(msg.error())
             else:
+                print(msg.value())
                 insts = parsermsg(msg.value(), log)
                 for inst in insts:
                     if inst not in instances:
                         instances.append(inst)
+                print(insts)
 
         except ConsumeError as e:
             log.error("Instance CHeck: Consumer error: {}".format(str(e)))

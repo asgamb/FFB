@@ -16,16 +16,17 @@
 
 from confluent_kafka import Producer
 import sys
-kafkaIP = "10.30.2.118"
+kafkaIP = "10.5.0.3"
 kafkaPort = 9092
 
-topic = "fgt-82f4710-3d04-429a-8243-5a2ac741fd4d_forecasting"
+topic = "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting"
 #topic = "Test"
 conf = {'bootstrap.servers': kafkaIP + ":" + str(kafkaPort)}
 
 p = Producer(**conf)
 
 # Producer configuration
+'''
 message = """
 [
     {
@@ -33,11 +34,11 @@ message = """
             "__name__": "node_cpu_seconds_total",
             "cpu": "0",
             "exporter": "node_exporter",
-            "instance": "spr2-1",
+            "instance": "dtcontrolvnf-1",
             "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
             "mode": "idle",
-            "nsId": "fgt-82f4710-3d04-429a-8243-5a2ac741fd4d",
-            "vnfdId": "spr2",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtcontrolvnf",
             "forecasted": "no"
         },
         "value": [
@@ -49,17 +50,40 @@ message = """
     {
         "metric": {
             "__name__": "node_cpu_seconds_total",
-            "cpu": "1",
+            "cpu": "0",
             "exporter": "node_exporter",
-            "instance": "spr2-1",
+            "instance": "dtcontrolvnf-2",
             "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
             "mode": "idle",
-            "nsId": "fgt-82f4710-3d04-429a-8243-5a2ac741fd4d",
-            "vnfdId": "spr2",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtcontrolvnf",
             "forecasted": "no"
         },
         "value": [
             1618383722.708,
+            "11.51"
+        ],
+        "type_message": "metric"
+    }
+]
+"""
+'''
+message = """
+[
+    {
+        "metric": {
+            "__name__": "node_cpu_seconds_total",
+            "cpu": "0",
+            "exporter": "node_exporter",
+            "instance": "dtcontrolvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "mode": "idle",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtcontrolvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            1605182761.708,
             "11.51"
         ],
         "type_message": "metric"

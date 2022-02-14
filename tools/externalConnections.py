@@ -31,8 +31,8 @@ class ExternalConnections:
         self.monPort = 8989
         self.monUrl = "/prom-manager"
 
-        self.kIp = "192.168.1.1"
-        self.kPort = 9999
+        self.kIp = "10.5.0.3"
+        self.kPort = 9092
         self.kUrl = "/kafka"
 
         self.localIp = "192.168.1.13"
@@ -98,10 +98,11 @@ class ExternalConnections:
                 return 0
 
     def createKafkaConsumer(self, id, topic):
+
         consumer = Consumer({
             'bootstrap.servers':  self.kIp + ":" + self.kPort,
             'group.id': id,
-            'auto.offset.reset': 'earliest'
+            'auto.offset.reset': 'latest'
         })
         consumer.subscribe([topic])
         log.debug("External Connector: Kafka consumer enbled for topic {}".format(topic))
