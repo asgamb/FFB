@@ -24,13 +24,15 @@ topic = "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting"
 #topic = "Test"
 conf = {'bootstrap.servers': kafkaIP + ":" + str(kafkaPort)}
 
-N1 = 0
-N2 = 10
+N1 = 1
+N2 = 0
+m_id = 3
 
 p = Producer(**conf)
 
+message = {}
 # Producer configuration
-message1 = """
+message[0] = """
 [
     {
         "metric": {
@@ -104,7 +106,7 @@ message1 = """
 ]
 """
 
-message2 = """
+message[1] = """
 [
     {
         "metric": {
@@ -120,14 +122,14 @@ message2 = """
         },
         "value": [
             %.2f,
-            "11.51"
+            "%s"
         ],
         "type_message": "metric"
     }
 ]
 """
 
-message3 = """
+message[2] = """
 [
         {
         "metric": {
@@ -308,7 +310,12 @@ for i in range(0, N1):
     t = a[0]
     cpu = a[1]
     rtt = a[2]
-    mess = message1 % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
+    mess = ""
+    if m_id == 0:
+        mess = message[m_id] % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
+    elif m_id == 1:
+        mess = message[m_id] % (float(t), cpu)
+
     p.produce(topic, value=mess, callback=delivery_callback)
     p.flush()
 
@@ -324,7 +331,7 @@ for i in range(0, N2):
     t = a[0]
     cpu = a[1]
     rtt = a[2]
-    mess = message3 % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0", float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
+    mess = message[2] % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0", float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
     p.produce(topic, value=mess, callback=delivery_callback)
     p.flush()
 

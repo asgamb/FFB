@@ -264,7 +264,7 @@ class _Forecasting(Resource):
         reqs[str(req_id)] = {'nsId': nsid, 'vnfdId': vnfdid, 'IL': il, 'nsdId': nsdid, 'instance_name': "",
                              'performanceMetric': "", 'isActive': True, 'scraperJob': [],
                              'kafkaTopic': None, 'prometheusJob': None, 'model': None, 'metrics': {}}
-        log.debug('Forecasting API: DB updated with new job id ' + str(req_id))
+        log.debug('Forecasting API: new forecasting job allocated with id ' + str(req_id))
 
         # create kafka topic and update reqs dict
         topic = ec.createKafkaTopic(nsid)
@@ -324,7 +324,7 @@ class _Forecasting(Resource):
                 return "Scraper job not created aborting", 403
 
         #simple mapping
-        if nsdid == "DTwin" and metric == "node_cpu_seconds_total":
+        if nsdid == "DTPoC_nsDT_Forecasting_Test" and metric == "node_cpu_seconds_total":
             model_forecasting = "lstmCPUEnhanced"
         else:
             model_forecasting = "lstmCPUBase"
@@ -615,6 +615,7 @@ class _PrometheusExporter(Resource):
             # creating replicas for the average data
             if "cpu" or "CPU" or "Cpu" in metric:
                 names = f.get_names()
+                print(names)
                 for instance in names.keys():
                     for c in range(0, len(names[instance]['cpus'])):
                         cpu = str(names[instance]['cpus'][c])

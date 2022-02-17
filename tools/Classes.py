@@ -71,7 +71,7 @@ class ForecastingJob:
         self.main_feature = 'cpu0'
         self.update_robots = True
 
-    def data_parser(self, json_data, avg):
+    def data_parser1(self, json_data, avg):
         loaded_json = json.loads(json_data)
         log.debug(self.instance_name + ": forecasting Job: received data: \n{}".format(loaded_json))
         names = {}
@@ -143,7 +143,14 @@ class ForecastingJob:
                             for c in range(0, len(names[key]['cpus'])):
                                 string = string + ";" + str(names[key]['values'][c])
                         self.datalist.append(StringIO(string + "\n"))
-        elif self.model == "lstmCPUEnhanced":
+        else:
+            log.error("Forecasting Job: model not supported")
+
+    def data_parser2(self, json_data):
+        loaded_json = json.loads(json_data)
+        log.debug(self.instance_name + ": forecasting Job: received data: \n{}".format(loaded_json))
+        names = {}
+        if self.model == "lstmCPUEnhanced":
             loaded_json = json.loads(json_data)
             for element in loaded_json:
                 mtype = element['type_message']
@@ -170,18 +177,20 @@ class ForecastingJob:
                             else:
                                 self.temp['cpuv'][index] = val
                                 ######
-                                mode = element['metric']['mode']
-                                if instance not in names.keys():
-                                    names[instance] = {}
-                                    names[instance]['cpus'] = []
-                                    names[instance]['modes'] = []
-                                    names[instance]['values'] = []
-                                    names[instance]['timestamp'] = []
-                                    names[instance]['cpus'].append(cpu)
-                                    names[instance]['modes'].append(mode)
-                                    names[instance]['values'].append(round(float(val), 2))
-                                    names[instance]['timestamp'].append(t)
-                                self.names = names
+                            mode = element['metric']['mode']
+                            if instance not in names.keys():
+                                names[instance] = {}
+                                names[instance]['cpus'] = []
+                                names[instance]['modes'] = []
+                                names[instance]['values'] = []
+                                names[instance]['timestamp'] = []
+                                names[instance]['cpus'].append(cpu)
+                                names[instance]['modes'].append(mode)
+                                names[instance]['values'].append(round(float(val), 2))
+                                names[instance]['timestamp'].append(t)
+                            self.names = names
+                            log.debug(self.instance_name + ": naming data acquired: \n{}".format(names))
+                            self.inject_data2()
                     elif "rtt" in m:
                         self.set_temp['rtt_latency'] = True
                         rob = element['metric']['robot_id']
@@ -236,19 +245,9 @@ class ForecastingJob:
                         if 'comlv' not in self.temp.keys():
                             self.temp['comlv'] = []
                         self.temp['comlv'].append(val)
-            self.inject_data()
+            #self.inject_data()
         else:
-            print("Forecasting Job: model not supported")
-
-    '''
-    avg_rtt_a1 = df['avg_rtt_a1'].values
-    avg_rtt_a2 = df['avg_rtt_a2'].values
-    avg_loss_a1 = df['avg_loss_a1'].values
-    avg_loss_a2 = df['avg_loss_a2'].values
-    cpu0 = df['cpu0'].values
-    robot_a1 = df['#r_act1'].values
-    robot_a2 = df['#r_act2'].values
-    '''
+            log.error("Forecasting Job: model not supported")
 
     def inject_data(self):
         if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
@@ -281,7 +280,7 @@ class ForecastingJob:
                                     if self.update_robots:
                                         val_a1 = val_a1 + rtt
                                         self.r1.append(temp1['rtt_id'][i])
-                                        print(self.instance_name + " added robot type1 {}".format(temp1['rtt_id'][i]))
+                                        log.info(self.instance_name + " added robot type1 {}".format(temp1['rtt_id'][i]))
                             else:
                                 if self.update_robots:
                                     if temp1['rtt_id'][i] not in self.r1:
@@ -300,7 +299,7 @@ class ForecastingJob:
                                     if self.update_robots:
                                         val_a2 = val_a2 + rtt
                                         self.r2.append(temp1['rtt_id'][i])
-                                        print(self.instance_name + " added robot type2 {}".format(temp1['rtt_id'][i]))
+                                        log.info(self.instance_name + " added robot type2 {}".format(temp1['rtt_id'][i]))
                             else:
                                 if self.update_robots:
                                     if temp1['rtt_id'][i] not in self.r2:
@@ -413,6 +412,232 @@ class ForecastingJob:
                 self.data[label].append(str(len(self.r2)))
                 log.info("{}->{}".format(label, self.data[label]))
 
+    def inject_data2(self):
+        if self.set_temp['node_cpu_seconds_total']:
+            temp1 = self.temp.copy()
+            if 'cpu' in temp1.keys():
+                for i in range(0, len(temp1['cpuv'])):
+                    # string = string + ";" + str(temp1['cpuv'][i])
+                    label = "cpu" + str(temp1['cpu'][i])
+                    if label in self.data.keys():
+                        if len(self.data[label]) == self.batch_size:
+                            del self.data[label][0]
+                            log.debug(self.instance_name + " forecasting Job, Deleting older element: \n{}".format(
+                                self.data[label]))
+                    else:
+                        self.data[label] = []
+                    self.data[label].append(temp1['cpuv'][i])
+                    log.debug(
+                        self.instance_name + " forecasting Job, current data for {}, after the addition: \n{}".format(
+                            label, self.data[label]))
+            if 'rttv' in temp1.keys():
+                val_a1 = 0.0
+                val_a2 = 0.0
+                for i in range(0, len(temp1['rttv'])):
+                    rtt = round(float(temp1['rttv'][i]), 2)
+                    # action type 1
+                    if rtt < 150:
+                        if temp1['rtt_id'][i] not in self.other_robs:
+                            if temp1['rtt_id'][i] not in self.r2:
+                                if temp1['rtt_id'][i] in self.r1:
+                                    val_a1 = val_a1 + rtt
+                                else:
+                                    if self.update_robots:
+                                        val_a1 = val_a1 + rtt
+                                        self.r1.append(temp1['rtt_id'][i])
+                                        log.info(self.instance_name + " added robot type1 {}".format(temp1['rtt_id'][i]))
+                            else:
+                                if self.update_robots:
+                                    if temp1['rtt_id'][i] not in self.r1:
+                                        val_a1 = val_a1 + rtt
+                                        self.r1.append(temp1['rtt_id'][i])
+                                        for index in range(0, len(self.r2)):
+                                            if self.r2[index] == temp1['rtt_id'][i]:
+                                                self.r2.pop(index)
+                    # action type 2
+                    else:
+                        if temp1['rtt_id'][i] not in self.other_robs:
+                            if temp1['rtt_id'][i] not in self.r1:
+                                if temp1['rtt_id'][i] in self.r2:
+                                    val_a2 = val_a2 + rtt
+                                else:
+                                    if self.update_robots:
+                                        val_a2 = val_a2 + rtt
+                                        self.r2.append(temp1['rtt_id'][i])
+                                        log.info(self.instance_name + " added robot type2 {}".format(temp1['rtt_id'][i]))
+                            else:
+                                if self.update_robots:
+                                    if temp1['rtt_id'][i] not in self.r2:
+                                        val_a2 = val_a2 + rtt
+                                        self.r2.append(temp1['rtt_id'][i])
+                                        for index in range(0, len(self.r1)):
+                                            if self.r1[index] == temp1['rtt_id'][i]:
+                                                self.r1.pop(index)
+                label = "avg_rtt_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                if len(self.r1) != 0:
+                    val = str(round((val_a1 / len(self.r1)), 2))
+                else:
+                    val = "0.0"
+                self.data[label].append(val)
+
+                label = "avg_rtt_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                if len(self.r2) != 0:
+                    val = str(round((val_a2 / len(self.r2)), 2))
+                else:
+                    val = "0.0"
+                self.data[label].append(val)
+            else:
+                log.info("No rtt data, adding default values set to 0.0")
+                label = "avg_rtt_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append("0.0")
+                label = "avg_rtt_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append("0.0")
+                label = "avg_loss_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append("0.0")
+                label = "avg_loss_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append("0.0")
+                label = "#robots"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(0))
+                label = "r_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(0))
+                label = "r_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(0))
+                log.info("no robot detected, reading only cpu")
+                for label in self.data.keys():
+                    log.debug("{}->{}".format(label, self.data[label]))
+                self.set_temp['node_cpu_seconds_total'] = False
+                return
+            '''
+            if 'upv' in temp1.keys():
+                avg_up = sum(temp1['upv']) / len(temp1['upv'])
+                string = string + ";" + str(round(avg_up, 2))
+
+            '''
+            if 'comlv' in temp1.keys() and 'comsv' in temp1.keys():
+                lv_a1 = 0.0
+                lv_a2 = 0.0
+                sv_a1 = 0.0
+                sv_a2 = 0.0
+
+                # avg_coml = sum(temp1['comlv']) / len(temp1['comlv'])
+                # avg_coms = sum(temp1['comsv']) / len(temp1['comsv'])
+                for i in range(0, len(temp1['comlv'])):
+                    lv = int(temp1['comlv'][i])
+                    sv = int(temp1['comsv'][i])
+                    if temp1['coml_id'][i] in self.r1:
+                        lv_a1 = lv_a1 + lv
+                        sv_a1 = sv_a1 + sv
+                    elif temp1['coml_id'][i] in self.r2:
+                        lv_a2 = lv_a2 + lv
+                        sv_a2 = sv_a2 + sv
+                    elif temp1['coml_id'][i] in self.other_robs:
+                        log.info("Robot handled {} by other jobs ".format(temp1['coml_id'][i]))
+                if sv_a1 != 0:
+                    l_a1 = round(float(lv_a1 / sv_a1), 5)
+                else:
+                    l_a1 = 0.0
+                if sv_a2 != 0:
+                    l_a2 = round(float(lv_a2 / sv_a2), 5)
+                else:
+                    l_a2 = 0.0
+                label = "avg_loss_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                if len(self.r1) != 0:
+                    val = str(round((l_a1 / len(self.r1)), 5))
+                else:
+                    val = "0.0"
+                self.data[label].append(val)
+                label = "avg_loss_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                if len(self.r2) != 0:
+                    val = str(round((l_a2 / len(self.r2)), 5))
+                else:
+                    val = "0.0"
+                self.data[label].append(val)
+            else:
+                self.data["avg_loss_a1"].append("0.0")
+                self.data["avg_loss_a2"].append("0.0")
+                log.info("no cmd lost detected")
+            robs = self.r1 + self.r2
+            if robs != 0:
+                label = "#robots"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(robs))
+                label = "r_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(len(self.r1)))
+                log.info("{}->{}".format(label, self.data[label]))
+                label = "r_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(str(len(self.r2)))
+                log.info("{}->{}".format(label, self.data[label]))
+            self.set_temp['node_cpu_seconds_total'] = False
+
     def get_names(self):
         return self.names
 
@@ -433,9 +658,10 @@ class ForecastingJob:
                         raise KafkaException(msg.error())
                 else:
                     # no error -> message received
-                    # print("Received new data")
-                    # print(msg.value())
-                    self.data_parser(msg.value(), avg)
+                    if self.model == "lstmCPUEnhanced":
+                        self.data_parser2(msg.value())
+                    else:
+                        self.data_parser1(msg.value(), avg)
 
             except ConsumeError as e:
                 log.error(self.instance_name + ": forecasting Job Consumer error: {}".format(str(e)))
@@ -467,6 +693,8 @@ class ForecastingJob:
             self.features = features
         if m_feature is not None:
             self.main_feature = m_feature
+        for feat in self.features:
+            self.set_temp[feat] = False
         if self.model == "lstmCPUBase":
             if load:
                 self.load_lstmcpubase(back, forward, filename)
@@ -501,9 +729,6 @@ class ForecastingJob:
                 return 0.0
             else:
                 for label in self.data.keys():
-                    # print(label)
-                    # print(len(self.data[label]))
-                    # print(self.back)
                     if len(self.data[label]) < self.back:
                         log.debug(self.instance_name + ": feature {} has low number of samples ".format(label))
                         return 0.0
