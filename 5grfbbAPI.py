@@ -352,14 +352,13 @@ class _Forecasting(Resource):
             log.debug('Forecasting API: Single instance detected')
             fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
             log.debug('Forecasting API: forecasting job created ' + fj.str())
-            # fj.set_model(1, 1, True, 'trainedModels/lstm11.h5')
             steps_back = 10
             steps_forw = 4
-            modelName = 'trainedModels/lstm'+str(steps_back)+'_'+str(steps_forw)+'.h5'
+            modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
             features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
             main_feature = 'cpu0'
 
-            fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
+            fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
             event = Event()
             t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
             t.start()
@@ -375,10 +374,9 @@ class _Forecasting(Resource):
                 instance = vnfdid + '-' + str(i)
                 instances.append(instance)
                 fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, i, instance)
-                fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
                 steps_back = 10
                 steps_forw = 4
-                modelName = 'trainedModels/lstm' + str(steps_back) + '_' + str(steps_forw) + '.h5'
+                modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
                 features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
                 main_feature = 'cpu0'
                 fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
@@ -523,10 +521,9 @@ class _ForecastingSetIL(Resource):
                 log.info("Scaling up the forecastng jobs for nsid {} and metric {}".format(nsdid, metric))
                 instance = vnfdid + '-' + str(il)
                 fj = ForecastingJob(job_id, nsdid, model_forecasting, metric, il, instance)
-                fj.set_model(1, 1, True, 'trainedModels/lstm11bis.h5')
                 steps_back = 10
                 steps_forw = 4
-                modelName = 'trainedModels/lstm' + str(steps_back) + '_' + str(steps_forw) + '.h5'
+                modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
                 features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
                 main_feature = 'cpu0'
                 fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
@@ -537,7 +534,7 @@ class _ForecastingSetIL(Resource):
 
                 # disabling the data acquisition from other jobs and get robots already configured
                 # active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
-                print(active_jobs[str(job_id)]['job'].get_robots())
+                #print(active_jobs[str(job_id)]['job'].get_robots())
                 active_robs = []
                 active_robs = active_robs + active_jobs[str(job_id)]['job'].get_robots()
                 active_jobs[str(job_id)]['job'].set_update_robots(False)
@@ -615,7 +612,7 @@ class _PrometheusExporter(Resource):
             # creating replicas for the average data
             if "cpu" or "CPU" or "Cpu" in metric:
                 names = f.get_names()
-                print(names)
+                #print(names)
                 for instance in names.keys():
                     for c in range(0, len(names[instance]['cpus'])):
                         cpu = str(names[instance]['cpus'][c])
@@ -703,7 +700,7 @@ class _PrometheusExporter(Resource):
                     # creating replicas for the average data
                     if "cpu" or "CPU" or "Cpu" in metric:
                         names = f.get_names()
-                        print(names)
+                        #print(names)
                         for instancex in names.keys():
                             for c in range(0, len(names[instancex]['cpus'])):
                                 cpu = str(names[instancex]['cpus'][c])
@@ -751,6 +748,8 @@ if __name__ == '__main__':
         port = config['local']['localPort']
         testForecasting = int(config['local']['testingEnabled'])
         devel = True if int(config['local']['development']) == 1 else False
+        save = True if int(config['local']['save_dataset']) == 1 else False
+
     else:
         port = PORT
     if 'AIML' in config:

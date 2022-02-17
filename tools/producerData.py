@@ -24,9 +24,9 @@ topic = "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting"
 #topic = "Test"
 conf = {'bootstrap.servers': kafkaIP + ":" + str(kafkaPort)}
 
-N1 = 1
+N1 = 10
 N2 = 0
-m_id = 3
+m_id = 1
 
 p = Producer(**conf)
 
@@ -69,7 +69,7 @@ message[0] = """
         ],
         "type_message": "metric"
     },
-   {
+    {
         "metric": {
             "__name__": "total_cmd_sent",
             "exporter": "node_exporter",
@@ -85,8 +85,8 @@ message[0] = """
             "%s"
         ],
         "type_message": "metric"
-   },
-   {
+    },
+    {
         "metric": {
             "__name__": "total_cmd_lost",
             "exporter": "node_exporter",
@@ -166,7 +166,7 @@ message[2] = """
         ],
         "type_message": "metric"
     },
-   {
+    {
         "metric": {
             "__name__": "total_cmd_sent",
             "exporter": "node_exporter",
@@ -182,8 +182,8 @@ message[2] = """
             "%s"
         ],
         "type_message": "metric"
-   },
-   {
+    },
+    {
         "metric": {
             "__name__": "total_cmd_lost",
             "exporter": "node_exporter",
@@ -210,6 +210,131 @@ message[2] = """
             "mode": "idle",
             "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
             "vnfdId": "dtcontrolvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    },
+    {
+        "metric": {
+            "__name__": "rtt_latency",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.77",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    },
+    {
+        "metric": {
+            "__name__": "total_cmd_sent",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.77",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    },
+    {
+        "metric": {
+            "__name__": "total_cmd_lost",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.77",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    }
+]
+"""
+
+message[3] = """
+[
+    {
+        "metric": {
+            "__name__": "node_cpu_seconds_total",
+            "cpu": "0",
+            "exporter": "node_exporter",
+            "instance": "dtcontrolvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "mode": "idle",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtcontrolvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    },
+    {
+        "metric": {
+            "__name__": "rtt_latency",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.76",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+    },
+    {
+        "metric": {
+            "__name__": "total_cmd_sent",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.76",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
+            "forecasted": "no"
+        },
+        "value": [
+            %.2f,
+            "%s"
+        ],
+        "type_message": "metric"
+   },
+   {
+        "metric": {
+            "__name__": "total_cmd_lost",
+            "exporter": "node_exporter",
+            "instance": "dtdtvvnf-1",
+            "job": "58d10e62-bdf5-44a9-9b35-0ba4ddd14b74",
+            "robot_id": "10.10.10.76",
+            "nsId": "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f",
+            "vnfdId": "dtdtvvnf",
             "forecasted": "no"
         },
         "value": [
@@ -283,7 +408,7 @@ def delivery_callback(err, msg):
 
 
 row = {}
-row[0] = "1639561638.65;1230572.12;219.3;0.0;219.3;1.24;0.0;0.0;0.0;1;0;1"
+row[0] = "1639561743.65;1230659.12;219.3;0.0;219.3;1.24;0.0;0.0;0.0;1;0;1"
 row[1] = "1639561758.65;1230674.94;219.3;0.0;219.3;1.34;0.0;0.0;0.0;1;0;1"
 row[2] = "1639561773.65;1230688.9;219.3;0.0;219.3;1.71;0.0;0.0;0.0;1;0;1"
 row[3] = "1639561788.66;1230702.9;219.3;0.0;219.3;1.34;0.0;0.0;0.0;1;0;1"
@@ -331,11 +456,17 @@ for i in range(0, N2):
     t = a[0]
     cpu = a[1]
     rtt = a[2]
-    mess = message[2] % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0", float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
+    if m_id == 2:
+        mess = message[m_id] % (float(t), cpu, float(t), rtt, float(t), "10", float(t), "0", float(t), cpu, float(t), rtt, float(t), "10", float(t), "0")
+    if m_id == 3:
+        mess = message[m_id] % (
+        float(t), cpu, float(t), rtt, float(t), "10", float(t), "0", float(t), rtt, float(t), "10",
+        float(t), "0")
+
     p.produce(topic, value=mess, callback=delivery_callback)
     p.flush()
 
     p.poll(1)
 
     print(mess)
-    time.sleep(2)
+    time.sleep(0.5)

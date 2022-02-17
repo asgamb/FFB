@@ -19,7 +19,7 @@ import json
 from confluent_kafka.error import ConsumeError
 
 from io import StringIO
-
+import os
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
@@ -70,6 +70,18 @@ class ForecastingJob:
         self.features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
         self.main_feature = 'cpu0'
         self.update_robots = True
+        self.csv = "data/data_.csv"
+        self.save = False
+        self.t0 = {}
+        self.set_t0 = {}
+
+        if os.path.isfile(self.csv):
+            [root, end] = self.csv.split('.')
+            for i in range(0, 100):
+                self.csv = root + self.instance_name + "_" + str(i) + "." + end
+                if not os.path.isfile(self.csv):
+                    break
+        log.info(self.instance_name + " save data on file {}".format(self.csv))
 
     def data_parser1(self, json_data, avg):
         loaded_json = json.loads(json_data)
@@ -190,7 +202,7 @@ class ForecastingJob:
                                 names[instance]['timestamp'].append(t)
                             self.names = names
                             log.debug(self.instance_name + ": naming data acquired: \n{}".format(names))
-                            self.inject_data2()
+
                     elif "rtt" in m:
                         self.set_temp['rtt_latency'] = True
                         rob = element['metric']['robot_id']
@@ -246,8 +258,18 @@ class ForecastingJob:
                             self.temp['comlv'] = []
                         self.temp['comlv'].append(val)
             #self.inject_data()
+            self.inject_data2()
         else:
             log.error("Forecasting Job: model not supported")
+
+    def savedata(self):
+        csv_file = open(self.csv, "a")
+        string = ""
+        for key in self.data.keys():
+            string = string + str(self.data[key][-1]) + ";"
+        string = string[:-1] + "\n"
+        csv_file.write(string)
+        csv_file.close()
 
     def inject_data(self):
         if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
@@ -426,10 +448,14 @@ class ForecastingJob:
                                 self.data[label]))
                     else:
                         self.data[label] = []
-                    self.data[label].append(temp1['cpuv'][i])
+                    if not label in self.set_t0.keys() or not self.set_t0[label]:
+                        self.t0[label] = temp1['cpuv'][i]
+                        self.set_t0[label] = True
+                    self.data[label].append(round(temp1['cpuv'][i]-self.t0[label], 2))
                     log.debug(
                         self.instance_name + " forecasting Job, current data for {}, after the addition: \n{}".format(
                             label, self.data[label]))
+
             if 'rttv' in temp1.keys():
                 val_a1 = 0.0
                 val_a2 = 0.0
@@ -551,6 +577,8 @@ class ForecastingJob:
                 for label in self.data.keys():
                     log.debug("{}->{}".format(label, self.data[label]))
                 self.set_temp['node_cpu_seconds_total'] = False
+                if self.save:
+                    self.savedata()
                 return
             '''
             if 'upv' in temp1.keys():
@@ -612,14 +640,14 @@ class ForecastingJob:
                 self.data["avg_loss_a2"].append("0.0")
                 log.info("no cmd lost detected")
             robs = self.r1 + self.r2
-            if robs != 0:
+            if len(robs) != 0:
                 label = "#robots"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(robs))
+                self.data[label].append(str(len(robs)))
                 label = "r_a1"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
@@ -637,6 +665,9 @@ class ForecastingJob:
                 self.data[label].append(str(len(self.r2)))
                 log.info("{}->{}".format(label, self.data[label]))
             self.set_temp['node_cpu_seconds_total'] = False
+            if self.save:
+                self.savedata()
+        self.temp = {}
 
     def get_names(self):
         return self.names
@@ -686,7 +717,7 @@ class ForecastingJob:
             temp = self.data[-init:]
             self.data = np.concatenate((temp, data), axis=0)
 
-    def set_model(self, back, forward, load, filename, features=None, m_feature=None):
+    def set_model(self, back, forward, load, filename, save, features=None, m_feature=None):
         self.back = back
         self.forward = forward
         if features is not None:
@@ -699,12 +730,25 @@ class ForecastingJob:
             if load:
                 self.load_lstmcpubase(back, forward, filename)
             else:
-                self.train_model(0.8, back, forward, None, filename)
+                self.train_model1(0.8, back, forward, None, filename)
         if self.model == "lstmCPUEnhanced":
             if load:
                 self.load_model_dt(back, forward, filename)
             else:
-                self.train_model(0.8, back, forward, None, filename)
+                self.train_model2(0.8, back, forward, None, filename)
+            if save:
+                self.save = True
+                #csv file initialization and header drop
+                csv_file = open(self.csv, "w")
+                listx = []
+                listx.append(self.main_feature)
+                listx = listx + self.features
+                string = ""
+                for m in listx:
+                    string = string + str(m) + ";"
+                string = string[:-1] + "\n"
+                csv_file.write(string)
+                csv_file.close()
 
     def get_forecasting_value(self, n_features, desired):
         if self.model == "Test":
@@ -735,7 +779,15 @@ class ForecastingJob:
             log.debug(self.instance_name + ": all features have enough samples {} ".format(self.data))
             value = self.trained_model.predict(self.data)
             if len(value) > 1:
+                #return round(float(value[self.forward - 1]), 2)
+                #print(self.t0[self.main_feature])
+                temp = []
+                for val in value:
+                    #print(val, self.t0[self.main_feature])
+                    temp.append(float(val) + float(self.t0[self.main_feature]))
+                #return round(float(temp[self.forward - 1]), 2)
                 return round(float(value[self.forward - 1]), 2)
+
             else:
                 return 0.0
         else:
@@ -766,7 +818,7 @@ class ForecastingJob:
         self.set_trained_model(lstm)
         return self.trained_model
 
-    def train_model(self, ratio, back, forward, data_file, model_file):
+    def train_model1(self, ratio, back, forward, data_file, model_file):
         if data_file is None:
             data_file = "../data/example-fin.csv"
         lstm = lstmcpu(data_file, ratio, back, forward, 0.90)
@@ -776,6 +828,18 @@ class ForecastingJob:
         lstm.train_lstm(True, model_file)
         self.set_trained_model(lstm)
         return self.trained_model
+
+    def train_model1(self, ratio, back, forward, data_file, model_file):
+        if data_file is None:
+            data_file = "../data/example-fin.csv"
+        lstm = lstmcpu(data_file, ratio, back, forward, 0.90)
+        lstm.get_dataset(True, 0, 1)
+        lstm.split_sequences_train()
+        lstm.reshape()
+        lstm.train_lstm(True, model_file)
+        self.set_trained_model(lstm)
+        return self.trained_model
+
 
     def get_robots(self):
         return self.r1 + self.r2
