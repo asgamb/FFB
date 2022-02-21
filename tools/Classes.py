@@ -717,9 +717,11 @@ class ForecastingJob:
             temp = self.data[-init:]
             self.data = np.concatenate((temp, data), axis=0)
 
-    def set_model(self, back, forward, load, filename, save, features=None, m_feature=None):
+    def set_model(self, back, forward, load, loadfilename, save, features=None, m_feature=None, savefilename=None):
         self.back = back
         self.forward = forward
+        if savefilename is None:
+            savefilename = "trainedModels/defaultModel.h5"
         if features is not None:
             self.features = features
         if m_feature is not None:
@@ -728,14 +730,15 @@ class ForecastingJob:
             self.set_temp[feat] = False
         if self.model == "lstmCPUBase":
             if load:
-                self.load_lstmcpubase(back, forward, filename)
+                self.load_lstmcpubase(back, forward, loadfilename)
             else:
-                self.train_model1(0.8, back, forward, None, filename)
+                self.train_model1(0.8, back, forward, None, savefilename)
         if self.model == "lstmCPUEnhanced":
             if load:
-                self.load_model_dt(back, forward, filename)
+                self.load_model_dt(back, forward, loadfilename)
             else:
-                self.train_model2(0.8, back, forward, None, filename)
+                self.train_model_dt(800, loadfilename, savefilename)
+            #save collected data on csb file
             if save:
                 self.save = True
                 #csv file initialization and header drop
@@ -829,14 +832,11 @@ class ForecastingJob:
         self.set_trained_model(lstm)
         return self.trained_model
 
-    def train_model1(self, ratio, back, forward, data_file, model_file):
-        if data_file is None:
-            data_file = "../data/example-fin.csv"
-        lstm = lstmcpu(data_file, ratio, back, forward, 0.90)
-        lstm.get_dataset(True, 0, 1)
-        lstm.split_sequences_train()
-        lstm.reshape()
-        lstm.train_lstm(True, model_file)
+    def train_model_dt(self, split, load_file, save_file):
+        if load_file is None:
+            load_file = "data/dataset_train.csv"
+        lstm = lstmcpudt(load_file, split, self.back, self.forward, 0.90, self.features, self.main_feature)
+        lstm.train(save=True, filename=save_file, split=split)
         self.set_trained_model(lstm)
         return self.trained_model
 
@@ -849,3 +849,7 @@ class ForecastingJob:
 
     def set_other_robots(self, val):
         self.other_robs = val
+
+    def config_t0(self, lab, val):
+        self.set_t0[lab] = True
+        self.t0[lab] = val

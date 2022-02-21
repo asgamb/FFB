@@ -379,7 +379,7 @@ class _Forecasting(Resource):
                 modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
                 features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
                 main_feature = 'cpu0'
-                fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
+                fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
                 event = Event()
                 t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(i, topic), False))
                 t.start()
@@ -526,7 +526,7 @@ class _ForecastingSetIL(Resource):
                 modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
                 features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
                 main_feature = 'cpu0'
-                fj.set_model(steps_back, steps_forw, True, modelName, features, main_feature)
+                fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
                 event = Event()
                 t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
                 t.start()
