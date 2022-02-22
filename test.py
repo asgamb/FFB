@@ -49,7 +49,8 @@ a.append("1309532.57;214.7;0.0;214.7;1.32;0.0;0.0;0.0;1;0;1")
 a.append("1309546.51;214.5;0.0;214.5;1.26;0.0;0.0;0.0;1;0;1")
 a.append("1309560.47;216.8;0.0;216.8;1.30;0.0;0.0;0.0;1;0;1")
 a.append("1309574.43;214.3;0.0;214.3;1.39;0.0;0.0;0.0;1;0;1")
-
+a.append("1309588.40;216.2;0.0;216.2;1.25;0.0;0.0;0.0;1;0;1")
+a.append("1309602.36;216.3;0.0;216.3;1.34;0.0;0.0;0.0;1;0;1")
 
 cpu = []
 data['cpu0'] =[]
@@ -61,7 +62,7 @@ data['#robots'] = []
 data['r_a1'] = []
 data['r_a2'] = []
 
-for row in range(0, len(a)):
+for row in range(0, 10):
     line = a[row].split(';')
     data['cpu0'].append(round(float(line[0]), 1))
     data['avg_rtt_a1'].append(round(float(line[2]), 1))
@@ -76,7 +77,7 @@ for row in range(0, len(a)):
 fj.set_data(data)
 fj.config_t0(main_feature, data['cpu0'][0])
 value = fj.get_forecasting_value(10, 4)
-print(data['cpu0'][9], value)
+print(data['cpu0'][13], value)
 
 
 
