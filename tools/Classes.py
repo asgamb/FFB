@@ -783,7 +783,7 @@ class ForecastingJob:
             value = self.trained_model.predict(self.data)
             if len(value) > 1:
                 #return round(float(value[self.forward - 1]), 2)
-                #print(self.t0[self.main_feature])
+                print(self.t0[self.main_feature])
                 temp = []
                 for val in value:
                     #print(val, self.t0[self.main_feature])

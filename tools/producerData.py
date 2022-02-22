@@ -26,7 +26,7 @@ conf = {'bootstrap.servers': kafkaIP + ":" + str(kafkaPort)}
 
 N1 = 10
 N2 = 0
-m_id = 1
+m_id = 0
 
 p = Producer(**conf)
 

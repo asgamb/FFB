@@ -35,7 +35,7 @@ class lstmcpudt:
     def __init__(self, file, ratio, back, forward, accuracy, features, main_feature):
         log.debug("initaite the lstm module")
         if file is None:
-            self.train_file = "../data/example-fin.csv"
+            self.train_file = "data/dataset_train.csv"
         else:
             self.train_file = file
         self.dataset = None
@@ -54,6 +54,7 @@ class lstmcpudt:
         self.n_features = len(features)
         self.other_features = features
         self.main_feature = main_feature
+        self.scaler_db ={}
 
     def split_sequences(self, sequences, n_steps_in, n_steps_out):
         X, y = list(), list()
@@ -74,7 +75,7 @@ class lstmcpudt:
     def train(self, save, filename, split):
         class mycallback(Callback):
             def on_epoch_end(self, epoch, logs={}):
-                if (logs.get('accuracy') is not None and logs.get('accuracy') >= 0.9):
+                if (logs.get('accuracy') is not None and logs.get('accuracy') >= 0.65):
                     print("\n Reached 90% accuracy so cancelling training")
                     self.model.stop_training = True
 
@@ -82,9 +83,12 @@ class lstmcpudt:
 
         train_df = self.data_preparation(None, train=True)
         X, y = self.split_sequences(train_df, self.look_backward, self.look_forward)
-        split_point = split
-        train_X, train_y = X[:split_point, :], y[:split_point, :]
-        test_X, test_y = X[split_point:, :], y[split_point:, :]
+        #split_point = split
+        #train_X, train_y = X[:split_point, :], y[:split_point, :]
+        #test_X, test_y = X[split_point:, :], y[split_point:, :]
+        train_X, train_y = X, y
+        #test_X, test_y = X[split_point:, :], y[split_point:, :]
+
         opt = keras.optimizers.Adam(learning_rate=0.0001)
         # define model
         n_features = len(self.other_features) + 1
@@ -99,8 +103,10 @@ class lstmcpudt:
         #                    validation_data=(test_X, test_y), shuffle=False)
 
         self.model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
-        self.model.fit(train_X, train_y, epochs=1200, steps_per_epoch=25, callbacks=[callback],
-                       validation_data=(test_X, test_y), shuffle=False)
+        #self.model.fit(train_X, train_y, epochs=1200, steps_per_epoch=25, callbacks=[callback],
+        #               validation_data=(test_X, test_y), shuffle=False)
+        self.model.fit(train_X, train_y, epochs=1200, steps_per_epoch=25, callbacks=[callback], shuffle=False)
+
         if save:
             self.model.save(filename)
         return self.model
@@ -112,6 +118,7 @@ class lstmcpudt:
 
     def predict(self, db):
         log.debug("LSTM: Predicting the value")
+        print(db)
         other_fatures, main_feature = self.data_preparation(db);
         if other_fatures is not None:
             y_pred_inv = self.predict_deep(other_fatures, main_feature, 1, self.look_backward,
@@ -172,17 +179,32 @@ class lstmcpudt:
 
         for feature in self.other_features:
             temp_db[feature] = df[feature].values
-        temp_db[self.main_feature] = df[self.main_feature].values
+        temp_db[self.main_feature] = df[self.main_feature].values - df[self.main_feature].values[0]
 
         # convert to [rows, columns] structure
         for feature in self.other_features:
             temp_db[feature] = temp_db[feature].reshape((len(temp_db[feature]), 1))
         temp_db[self.main_feature] = temp_db[self.main_feature].reshape((len(temp_db[self.main_feature]), 1))
 
-        # normalization
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        for feature in self.other_features:
-            scaled_db[feature] = scaler.fit_transform(temp_db[feature])
+        #initialize the scaler for testing
+        if not train:
+            df = pandas.read_csv(self.train_file, sep=";", header=0)
+            df = df.drop(labels=0, axis=0)
+            scaler = MinMaxScaler(feature_range=(0, 1))
+
+            for feature in self.other_features:
+                entry = df[feature].values
+
+                entry = entry.reshape((len(entry), 1))
+
+                self.scaler_db[feature] = scaler.fit(entry)
+                scaled_db[feature] = self.scaler_db[feature].transform(temp_db[feature])
+
+        else:
+            # normalization
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            for feature in self.other_features:
+                scaled_db[feature] = scaler.fit_transform(temp_db[feature])
 
         if train:
             main_feature_scaled = scaler.fit_transform(temp_db[self.main_feature])
