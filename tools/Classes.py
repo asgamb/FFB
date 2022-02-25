@@ -39,7 +39,7 @@ class ForecastingJob:
     https://github.com/confluentinc/confluent-kafka-python
     """
 
-    def __init__(self, idx, data_type, model, metric, il, instance_name, steps=None):
+    def __init__(self, idx, data_type, model, metric, il, instance_name, steps=None, output=None, outTopic=None):
         self.model = model
         self.job_id = idx
         self.nstype = data_type
@@ -74,6 +74,8 @@ class ForecastingJob:
         self.save = False
         self.t0 = {}
         self.set_t0 = {}
+        self.producer = output
+        self.outTopic = outTopic
 
         if os.path.isfile(self.csv):
             [root, end] = self.csv.split('.')
@@ -579,6 +581,8 @@ class ForecastingJob:
                 self.set_temp['node_cpu_seconds_total'] = False
                 if self.save:
                     self.savedata()
+                if self.producer is not None:
+                    self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
                 return
             '''
             if 'upv' in temp1.keys():
@@ -667,7 +671,23 @@ class ForecastingJob:
             self.set_temp['node_cpu_seconds_total'] = False
             if self.save:
                 self.savedata()
+            if self.producer is not None:
+                self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
         self.temp = {}
+
+    def kafka_send(self, message):
+        def delivery_callback(err, msg):
+            if err:
+                log.error('%% Message failed delivery: %s\n' % err)
+            else:
+                log.debug('%% Message delivered to %s [%d] @ %d\n' %
+                                 (msg.topic(), msg.partition(), msg.offset()))
+
+        # p.produce(topic, key="metric", value=message, callback=delivery_callback)
+        self.producer.produce(self.outTopic, value=message, callback=delivery_callback)
+        self.producer.flush()
+
+        self.producer.poll(1)
 
     def get_names(self):
         return self.names
@@ -690,6 +710,7 @@ class ForecastingJob:
                 else:
                     # no error -> message received
                     if self.model == "lstmCPUEnhanced":
+                        print(msg.value())
                         self.data_parser2(msg.value())
                     else:
                         self.data_parser1(msg.value(), avg)

@@ -1,16 +1,29 @@
 from tools.Classes import ForecastingJob
+from tools.externalConnections import ExternalConnections
+from threading import Thread, Event
+from confluent_kafka import KafkaError, KafkaException
+from confluent_kafka.error import ConsumeError
+import sys
 
+ec = ExternalConnections('config.conf')
 
 il = 1
-load = False
-save = True
-fj = ForecastingJob("aa", "aa", "lstmCPUEnhanced", "node_cpu_seconds_total", il, "dtcontrolvnf-1")
+load = True
+save = False
+
+intopic = "inputTopic"
+outopic = "outputTopic"
+
+producer = ec.createKafkaProducer()
+
+fj = ForecastingJob("test", "test", "lstmCPUEnhanced", "node_cpu_seconds_total", il, "dtcontrolvnf-1", outTopic=outopic,
+                    output=producer)
 #input and output features
 steps_back = 10
 steps_forw = 4
 if load:
     # input model file to be loaded (no train)
-    loadfile = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
+    #loadfile = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
     loadfile = 'trainedModels/newLSTM.h5'
 else:
     #dataset to be used for training in case load is False
@@ -73,13 +86,56 @@ for row in range(0, 10):
     data['r_a1'].append(round(float(line[9]), 1))
     data['r_a2'].append(round(float(line[10]), 1))
 
-
 fj.set_data(data)
 fj.config_t0(main_feature, data['cpu0'][0])
 value = fj.get_forecasting_value(10, 4)
+
+for row in range(10, len(a)):
+    line = a[row].split(';')
+    data['cpu0'].append(round(float(line[0]), 1))
+    data['avg_rtt_a1'].append(round(float(line[2]), 1))
+    data['avg_rtt_a2'].append(round(float(line[3]), 1))
+    data['avg_loss_a1'].append(round(float(line[6]), 1))
+    data['avg_loss_a2'].append(round(float(line[7]), 1))
+    data['#robots'].append(round(float(line[8]), 1))
+    data['r_a1'].append(round(float(line[9]), 1))
+    data['r_a2'].append(round(float(line[10]), 1))
+
 print(data['cpu0'][13], value)
 
 
+event = Event()
+t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, intopic), False))
+t.start()
+
+consumer = ec.createKafkaConsumer(il, outopic)
+
+while True:
+    try:
+        msg = consumer.poll(1.0)
+        if msg is None:
+            continue
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                # End of partition event
+                sys.stderr.write('%% %s [%d] reached end at offset %d\n' % (msg.topic(),
+                                                                                      msg.partition(),
+                                                                                      msg.offset()))
+            elif msg.error():
+                raise KafkaException(msg.error())
+        else:
+            sys.stderr.write(msg.value())
+
+    except ConsumeError as e:
+        sys.stderr.write("Consumer error: {}".format(str(e)))
+        # Should be commits manually handled?
+        consumer.close()
+    except KeyboardInterrupt:
+        event.set()
+        t.join()
+        #ec.deleteKafkaTopic(intopic)
+        #ec.deleteKafkaTopic(outopic)
+        break
 
 
 

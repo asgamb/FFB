@@ -1,3 +1,8 @@
 venv/
 test/
 5grfbb.log
+braine.log
+braineModule.py
+configBraine.conf
+test.py
+data/message.json

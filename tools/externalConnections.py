@@ -18,9 +18,10 @@ import configparser
 from http.client import HTTPConnection
 from json import dumps, loads
 from confluent_kafka.admin import AdminClient
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, Producer
 from confluent_kafka.cimpl import NewTopic
 import logging
+import json
 
 log = logging.getLogger("ExternalConnector")
 
@@ -97,16 +98,51 @@ class ExternalConnections:
                 log.error("External Connector: Failed to delete topic {}: {}".format(topic, e))
                 return 0
 
+    def createKafkaTopic_free(self, topic):
+        print(self.kIp + ":" + str(self.kPort))
+        new_topics = []
+        broker = self.kIp + ":" + str(self.kPort)
+        client = AdminClient({'bootstrap.servers' : broker})
+        new_topics.append(NewTopic(topic, 1, 1))
+        fs = client.create_topics(new_topics)
+
+        # Wait for operation to finish.
+        # Timeouts are preferably controlled by passing request_timeout=15.0
+        # to the create_topics() call.
+        # All futures will finish at the same time.
+        log.debug('External Connector: Creating kafka topic ' + str(topic))
+
+        for topic_elem, f in fs.items():
+            try:
+                f.result()
+                log.debug("External Connector: Topic {} created".format(topic_elem))
+                return topic
+            except Exception as e:
+                log.error("External Connector: Failed to create topic {}: {}".format(topic_elem, e))
+                return 0
+
+
     def createKafkaConsumer(self, id, topic):
+
 
         consumer = Consumer({
             'bootstrap.servers':  self.kIp + ":" + self.kPort,
             'group.id': id,
-            'auto.offset.reset': 'latest'
+            'auto.offset.reset': 'latest'#,
+            #'value.deserializer': lambda m: json.loads(m.decode('utf-8'))
         })
         consumer.subscribe([topic])
         log.debug("External Connector: Kafka consumer enbled for topic {}".format(topic))
         return consumer
+
+    def createKafkaProducer(self):
+        # value_serializer = lambda m: json.dumps(m).encode('utf-8'))
+        conf = {
+            'bootstrap.servers': self.kIp + ":" + str(self.kPort)#,
+            #'value.serializer': lambda m: json.dumps(m).encode('utf-8')
+        }
+        p = Producer(conf)
+        return p
 
 
     ### Prometheus methods ###
