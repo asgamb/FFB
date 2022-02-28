@@ -25,6 +25,7 @@ from tensorflow.python.keras.callbacks import Callback
 from tensorflow import keras
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array , hstack
+import joblib
 
 import logging
 
@@ -50,29 +51,33 @@ class lstmcpudt:
         else:
             self.desired_accuracy = accuracy
         self.model = None
-        self.scaler = MinMaxScaler(feature_range=(0, 1))
+        self.mmscaler = MinMaxScaler(feature_range=(0,1))
+        self.mmscaler_cpu = MinMaxScaler(feature_range=(0,1))
+        
         self.n_features = len(features)
         self.other_features = features
         self.main_feature = main_feature
         self.scaler_db ={}
 
-    def split_sequences(self, sequences, n_steps_in, n_steps_out):
-        X, y = list(), list()
-        for i in range(len(sequences)):
-            # find the end of this pattern
-            end_ix = i + n_steps_in
-            out_end_ix = end_ix + n_steps_out - 1
-            # check if we are beyond the dataset
-            if out_end_ix > len(sequences):
-                break
-            # gather input and output parts of the pattern
-            seq_x, seq_y = sequences[i:end_ix, :-1], sequences[end_ix - 1:out_end_ix, -1]
-            X.append(seq_x)
-            y.append(seq_y)
-        return array(X), array(y)
+    def split_sequences(self,dataset, target, start, end, window, horizon):
+         X = []
+         y = []
+         start = start + window
+         if end is None:
+             end = len(dataset) - horizon
+         for i in range(start, end-3):
+             indices = range(i-window, i)
+             X.append(dataset[indices])
+             #prendo la quarta y -> y(t+4)
+             indicey = range(i+3, i+3+horizon)
+             y.append(target[indicey])
+         return np.array(X), np.array(y)
+
 
     # train the model
     def train(self, save, filename, split):
+        '''
+
         class mycallback(Callback):
             def on_epoch_end(self, epoch, logs={}):
                 if (logs.get('accuracy') is not None and logs.get('accuracy') >= 0.65):
@@ -80,33 +85,31 @@ class lstmcpudt:
                     self.model.stop_training = True
 
         callback = mycallback()
-
+        '''
         train_df = self.data_preparation(None, train=True)
-        X, y = self.split_sequences(train_df, self.look_backward, self.look_forward)
-        #split_point = split
-        #train_X, train_y = X[:split_point, :], y[:split_point, :]
-        #test_X, test_y = X[split_point:, :], y[split_point:, :]
-        train_X, train_y = X, y
-        #test_X, test_y = X[split_point:, :], y[split_point:, :]
+        X = train_df.to_numpy()
+        y = train_df[self.main_feature].to_numpy()
+        
+        start = 0
+        end = None
+        X_train, y_train = self.split_sequences(X, y, start, end, window=self.look_backward, horizon=self.look_forward)
 
         opt = keras.optimizers.Adam(learning_rate=0.0001)
         # define model
-        n_features = len(self.other_features) + 1
         self.model = Sequential()
-        self.model.add(LSTM(50, activation='relu', return_sequences=True, input_shape=(self.look_backward, n_features)))
-        self.model.add(LSTM(50, activation='relu'))
-        self.model.add(Dense(self.look_forward))
-        self.model.add(Activation('linear'))
-        #self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
-        # Fit network
-        #self.model.fit(train_X, train_y, epochs=60, steps_per_epoch=25, verbose=1,
-        #                    validation_data=(test_X, test_y), shuffle=False)
-
-        self.model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
-        #self.model.fit(train_X, train_y, epochs=1200, steps_per_epoch=25, callbacks=[callback],
-        #               validation_data=(test_X, test_y), shuffle=False)
-        self.model.fit(train_X, train_y, epochs=1200, steps_per_epoch=25, callbacks=[callback], shuffle=False)
-
+        #model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=True), input_shape=x_train.shape[-2:]))
+        self.model.add(LSTM(100, activation='tanh', input_shape=X_train.shape[-2:]))
+        #self.model.add(LSTM(150, activation='tanh',return_sequences=True,input_shape=X_train.shape[-2:]))
+        #self.model.add(LSTM(50, activation='tanh'))
+        #self.model.add(Dense(units=10))
+        self.model.add(Dense(50, activation='tanh'))
+        self.model.add(Dense(10, activation='tanh'))
+        #self.model.add(Dropout(0.5))
+        self.model.add(Dense(units=self.look_forward))
+        self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
+        self.model.fit(X_train, y_train, epochs=100, steps_per_epoch=25, shuffle=False, verbose=1)
+        #print(str(self.model.predict(X_train[0].reshape([1,10,7]))))
+        #print(str(y_train[0]))
         if save:
             self.model.save(filename)
         return self.model
@@ -114,20 +117,18 @@ class lstmcpudt:
     def load_trained_model(self, filename):
         log.info("LSTM: Loading the lstm model from file {}".format(filename))
         self.model = load_model(filename)
+        if "cpu" in self.main_feature:
+            self.mmscaler = joblib.load("trainedModels/lstmdt_10_4_mmscaler")
+            self.mmscaler_cpu = joblib.load("trainedModels/lstmdt_10_4_mmscaler_cpu")
         return self.model
 
     def predict(self, db):
         log.debug("LSTM: Predicting the value")
-        print(db)
-        other_fatures, main_feature = self.data_preparation(db);
-        if other_fatures is not None:
-            y_pred_inv = self.predict_deep(other_fatures, main_feature, 1, self.look_backward,
-                                           (self.look_backward+self.look_forward))
-            #print(y_pred_inv)
-            temp = []
-            for val in y_pred_inv:
-                temp.append("%.2f" % val)
-            #print(temp)
+        data = self.data_preparation(db)
+        if data is not None:
+            y_pred_inv = self.model.predict(data.to_numpy().reshape([1, 10, 7]))
+            y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred_inv)
+            temp = ["%.2f" % y_pred_inv]
             return temp
         else:
             return 0
@@ -135,96 +136,63 @@ class lstmcpudt:
     def set_train_file(self, file):
         self.train_file = file
 
-    def predict_deep(self, dataset_test, y_test, start, end, last):
+    '''
+    def predict_deep(self, dataset_test, start, end, last):
 
         # prepare test data X
         dataset_test_X = dataset_test[start:end, :]
         test_X_new = dataset_test_X.reshape(1, dataset_test_X.shape[0], dataset_test_X.shape[1])
-        dataset_test_y = y_test[end:last, :]
+        #dataset_test_y = y_test[end:last, :]
         df = pandas.read_csv("algorithms/dataset_test.csv", sep=";", header=0)
 
         df = df.drop(labels=0, axis=0)
-        cpu0 = df['cpu0'].values
+        cpu0 = df[self.main_feature].values
 
         cpu0 = cpu0.reshape((len(cpu0), 1))
 
-        scaler1 = MinMaxScaler(feature_range=(0, 1))
-        scaler1.fit(cpu0)
-
-        # predictions
         y_pred = self.model.predict(test_X_new)
-        y_pred_inv = scaler1.inverse_transform(y_pred)
-        y_pred_inv = y_pred_inv.reshape(self.look_forward, 1)
-        #y_pred_inv = y_pred.reshape(self.look_forward, 1)
+        y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred)
+        print(y_pred_inv)
+        #no need of reshape (1x1 value)
+        #y_pred_inv = y_pred_inv.reshape(self.look_forward, 1)
 
-        y_pred_inv = y_pred_inv[:, 0]
+        #y_pred_inv = y_pred_inv[:, 0]
 
         return y_pred_inv
+    '''
 
     def data_preparation(self, db, train=False):
-        temp_db = {}
-        scaled_db = {}
+        temp_db = pandas.DataFrame()
 
         if train:
-            print(self.train_file)
             df = pandas.read_csv(self.train_file, sep=";", header=0 )
-            df = df.drop(labels=0, axis=0)
         else:
-            #print(len(self.other_features))
-            #print(len(db.keys()))
-            if len(self.other_features) != len(db.keys())-2:
-                return None, None
-            else:
-                df = pandas.DataFrame(data=db)
+            df = pandas.DataFrame(db)
 
         for feature in self.other_features:
             temp_db[feature] = df[feature].values
         temp_db[self.main_feature] = df[self.main_feature].values - df[self.main_feature].values[0]
 
-        # convert to [rows, columns] structure
-        for feature in self.other_features:
-            temp_db[feature] = temp_db[feature].reshape((len(temp_db[feature]), 1))
-        temp_db[self.main_feature] = temp_db[self.main_feature].reshape((len(temp_db[self.main_feature]), 1))
-
-        #initialize the scaler for testing
-        if not train:
-            df = pandas.read_csv(self.train_file, sep=";", header=0)
-            df = df.drop(labels=0, axis=0)
-            scaler = MinMaxScaler(feature_range=(0, 1))
-
-            for feature in self.other_features:
-                entry = df[feature].values
-
-                entry = entry.reshape((len(entry), 1))
-
-                self.scaler_db[feature] = scaler.fit(entry)
-                scaled_db[feature] = self.scaler_db[feature].transform(temp_db[feature])
+        if train:
+            #replica is an array containing the list of features (including the main)
+            # temp is a dataframe containing the main feature
+            temp = pandas.DataFrame()
+            temp = pandas.concat([temp, temp_db[self.main_feature]])
+            replica = self.other_features
+            replica.append(self.main_feature)
+            df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
+                                          self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
+            joblib.dump(self.mmscaler, "trainedModels/lstm_mmscaler")
+            joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
+            # save scaler for future use
+            #print(df)
 
         else:
-            # normalization
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            for feature in self.other_features:
-                scaled_db[feature] = scaler.fit_transform(temp_db[feature])
-
-        if train:
-            main_feature_scaled = scaler.fit_transform(temp_db[self.main_feature])
-            # features order
-            #static
-            # dataset_stacked = hstack((scaled_db['avg_rtt_a1'], scaled_db['avg_rtt_a2'],
-            #                          scaled_db['avg_loss_a1'], scaled_db['avg_loss_a2'],
-            #                          scaled_db['r_a1'], scaled_db['r_a2'], main_feature_scaled))
-            #dynamic creation
-            dataset_stacked = np.empty((len(temp_db[self.main_feature]), 1))
-            for i in range(0, len(self.other_features)):
-                dataset_stacked = hstack((dataset_stacked, scaled_db[self.other_features[i]]))
-            dataset_stacked = hstack((dataset_stacked, main_feature_scaled))
-            return dataset_stacked  # dataset_train
-        #dynamic generation
-        dataset_stacked = np.empty((len(temp_db[self.main_feature]), 1))
-        for i in range(0, len(self.other_features)):
-            dataset_stacked = hstack((dataset_stacked, scaled_db[self.other_features[i]]))
-        #static generation
-        # #dataset_stacked = hstack((scaled_db['avg_rtt_a1'], scaled_db['avg_rtt_a2'],
-        #                          scaled_db['avg_loss_a1'], scaled_db['avg_loss_a2'],
-        #                          scaled_db['r_a1'], scaled_db['r_a2']))
-        return dataset_stacked, temp_db[self.main_feature]  # dataset_test
+            temp = pandas.DataFrame()
+            temp = pandas.concat([temp, temp_db[self.main_feature]])
+            replica = self.other_features
+            replica.append(self.main_feature)
+            df = pandas.DataFrame(
+                hstack([self.mmscaler.transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
+                        self.mmscaler_cpu.transform(temp)]), columns=replica)
+        return df

@@ -132,7 +132,7 @@ class ExternalConnections:
             #'value.deserializer': lambda m: json.loads(m.decode('utf-8'))
         })
         consumer.subscribe([topic])
-        log.debug("External Connector: Kafka consumer enbled for topic {}".format(topic))
+        log.debug("External Connector: Kafka consumer enabled for topic {}".format(topic))
         return consumer
 
     def createKafkaProducer(self):

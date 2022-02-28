@@ -20,12 +20,12 @@ import time
 kafkaIP = "10.5.0.3"
 kafkaPort = 9092
 
-#topic = "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting"
-topic = "INtopic"
+topic = "fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting"
+#topic = "INtopic"
 #topic = "Test"
 conf = {'bootstrap.servers': kafkaIP + ":" + str(kafkaPort)}
 
-N1 = 1
+N1 = 10
 N2 = 0
 m_id = 0
 

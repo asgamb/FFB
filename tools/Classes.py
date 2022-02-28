@@ -76,6 +76,7 @@ class ForecastingJob:
         self.set_t0 = {}
         self.producer = output
         self.outTopic = outTopic
+        self.loaded_json = {}
 
         if os.path.isfile(self.csv):
             [root, end] = self.csv.split('.')
@@ -287,7 +288,7 @@ class ForecastingJob:
                             log.debug(self.instance_name+ "forecasting Job, Deleting older element: \n{}".format(self.data[label]))
                     else:
                         self.data[label] = []
-                    self.data[label].append(temp1['cpuv'][i])
+                    self.data[label].append(round(float(temp1['cpuv'][i]), 1))
                     log.debug(self.instance_name+ "forecasting Job, current data for {}, after the addition: \n{}".format(label, self.data[label]))
             if 'rttv' in temp1.keys():
                 val_a1 = 0.0
@@ -339,9 +340,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r1) != 0:
-                    val = str(round((val_a1 / len(self.r1)), 2))
+                    val = round((val_a1 / len(self.r1)), 1)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
 
                 label = "avg_rtt_a2"
@@ -351,9 +352,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r2) != 0:
-                    val = str(round((val_a2 / len(self.r2)), 2))
+                    val = round((val_a2 / len(self.r2)), 1)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
             '''
             if 'upv' in temp1.keys():
@@ -395,7 +396,7 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r1) != 0:
-                    val = str(round((l_a1 / len(self.r1)), 5))
+                    val = round((l_a1 / len(self.r1)), 5)
                 else:
                     val = "0.0"
                 self.data[label].append(val)
@@ -406,26 +407,26 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r2) != 0:
-                    val = str(round((l_a2 / len(self.r2)), 5))
+                    val = round((l_a2 / len(self.r2)), 5)
                 else:
                     val = "0.0"
                 self.data[label].append(val)
             robs = self.r1 + self.r2
             if robs != 0:
-                label = "#robots"
-                if label in self.data.keys():
-                    if len(self.data[label]) == self.batch_size:
-                        del self.data[label][0]
-                else:
-                    self.data[label] = []
-                self.data[label].append(str(robs))
+                #label = "#robots"
+                #if label in self.data.keys():
+                #    if len(self.data[label]) == self.batch_size:
+                #        del self.data[label][0]
+                #else:
+                #    self.data[label] = []
+                #self.data[label].append(robs)
                 label = "r_a1"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(len(self.r1)))
+                self.data[label].append(len(self.r1))
                 log.info("{}->{}".format(label, self.data[label]))
                 label = "r_a2"
                 if label in self.data.keys():
@@ -433,7 +434,7 @@ class ForecastingJob:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(len(self.r2)))
+                self.data[label].append(len(self.r2))
                 log.info("{}->{}".format(label, self.data[label]))
 
     def inject_data2(self):
@@ -508,9 +509,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r1) != 0:
-                    val = str(round((val_a1 / len(self.r1)), 2))
+                    val = round((val_a1 / len(self.r1)), 2)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
 
                 label = "avg_rtt_a2"
@@ -520,9 +521,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r2) != 0:
-                    val = str(round((val_a2 / len(self.r2)), 2))
+                    val = round((val_a2 / len(self.r2)), 2)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
             else:
                 log.info("No rtt data, adding default values set to 0.0")
@@ -532,49 +533,49 @@ class ForecastingJob:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append("0.0")
+                self.data[label].append(0.0)
                 label = "avg_rtt_a2"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append("0.0")
+                self.data[label].append(0.0)
                 label = "avg_loss_a1"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append("0.0")
+                self.data[label].append(0.0)
                 label = "avg_loss_a2"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append("0.0")
-                label = "#robots"
-                if label in self.data.keys():
-                    if len(self.data[label]) == self.batch_size:
-                        del self.data[label][0]
-                else:
-                    self.data[label] = []
-                self.data[label].append(str(0))
+                self.data[label].append(0.0)
+                #label = "#robots"
+                #if label in self.data.keys():
+                #    if len(self.data[label]) == self.batch_size:
+                #        del self.data[label][0]
+                #else:
+                #    self.data[label] = []
+                #self.data[label].append(0)
                 label = "r_a1"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(0))
+                self.data[label].append(0)
                 label = "r_a2"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(0))
+                self.data[label].append(0)
                 log.info("no robot detected, reading only cpu")
                 for label in self.data.keys():
                     log.debug("{}->{}".format(label, self.data[label]))
@@ -582,7 +583,9 @@ class ForecastingJob:
                 if self.save:
                     self.savedata()
                 if self.producer is not None:
-                    self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
+                    msg = self.create_json()
+                    #self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
+                    self.kafka_send(msg)
                 return
             '''
             if 'upv' in temp1.keys():
@@ -624,9 +627,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r1) != 0:
-                    val = str(round((l_a1 / len(self.r1)), 5))
+                    val = round((l_a1 / len(self.r1)), 5)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
                 label = "avg_loss_a2"
                 if label in self.data.keys():
@@ -635,9 +638,9 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 if len(self.r2) != 0:
-                    val = str(round((l_a2 / len(self.r2)), 5))
+                    val = round((l_a2 / len(self.r2)), 5)
                 else:
-                    val = "0.0"
+                    val = 0.0
                 self.data[label].append(val)
             else:
                 self.data["avg_loss_a1"].append("0.0")
@@ -645,20 +648,20 @@ class ForecastingJob:
                 log.info("no cmd lost detected")
             robs = self.r1 + self.r2
             if len(robs) != 0:
-                label = "#robots"
-                if label in self.data.keys():
-                    if len(self.data[label]) == self.batch_size:
-                        del self.data[label][0]
-                else:
-                    self.data[label] = []
-                self.data[label].append(str(len(robs)))
+                #label = "#robots"
+                #if label in self.data.keys():
+                #    if len(self.data[label]) == self.batch_size:
+                #        del self.data[label][0]
+                #else:
+                #    self.data[label] = []
+                #self.data[label].append(len(robs))
                 label = "r_a1"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(len(self.r1)))
+                self.data[label].append(len(self.r1))
                 log.info("{}->{}".format(label, self.data[label]))
                 label = "r_a2"
                 if label in self.data.keys():
@@ -666,13 +669,17 @@ class ForecastingJob:
                         del self.data[label][0]
                 else:
                     self.data[label] = []
-                self.data[label].append(str(len(self.r2)))
+                self.data[label].append(len(self.r2))
                 log.info("{}->{}".format(label, self.data[label]))
             self.set_temp['node_cpu_seconds_total'] = False
             if self.save:
                 self.savedata()
+            #if self.producer is not None:
+            #    self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
             if self.producer is not None:
-                self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
+                msg = self.create_json()
+                self.kafka_send(msg)
+
         self.temp = {}
 
     def kafka_send(self, message):
@@ -684,10 +691,20 @@ class ForecastingJob:
                                  (msg.topic(), msg.partition(), msg.offset()))
 
         # p.produce(topic, key="metric", value=message, callback=delivery_callback)
-        self.producer.produce(self.outTopic, value=message, callback=delivery_callback)
+        self.producer.produce(self.outTopic, value=json.dumps(message).encode('utf-8'), callback=delivery_callback)
         self.producer.flush()
-
         self.producer.poll(1)
+
+    def create_json(self):
+        val = self.get_forecasting_value(self.back, self.forward)
+
+        for elem in self.loaded_json:
+            if elem['metric']['__name__'] == "node_cpu_seconds_total":
+                elem['value'][1] = val
+        print(val)
+        print(self.loaded_json)
+        return self.loaded_json
+
 
     def get_names(self):
         return self.names
@@ -710,7 +727,9 @@ class ForecastingJob:
                 else:
                     # no error -> message received
                     if self.model == "lstmCPUEnhanced":
-                        print(msg.value())
+                        if self.producer is not None:
+                            self.loaded_json = json.loads(msg.value())
+                            print(json.dumps(self.loaded_json, indent=4, sort_keys=True))
                         self.data_parser2(msg.value())
                     else:
                         self.data_parser1(msg.value(), avg)
@@ -798,18 +817,18 @@ class ForecastingJob:
             else:
                 for label in self.data.keys():
                     if len(self.data[label]) < self.back:
-                        log.debug(self.instance_name + ": feature {} has low number of samples ".format(label))
-                        return 0.0
+                        if "#robots" not in label:
+                            log.debug(self.instance_name + ": feature {} has low number of samples ".format(label))
+                            return 0.0
             log.debug(self.instance_name + ": all features have enough samples {} ".format(self.data))
             value = self.trained_model.predict(self.data)
+            if len(value) == 1:
+                return round((float(value[0]) + self.t0[self.main_feature]), 2)
             if len(value) > 1:
-                #return round(float(value[self.forward - 1]), 2)
-                print(self.t0[self.main_feature])
                 temp = []
                 for val in value:
-                    #print(val, self.t0[self.main_feature])
+
                     temp.append(float(val) + float(self.t0[self.main_feature]))
-                #return round(float(temp[self.forward - 1]), 2)
                 return round(float(value[self.forward - 1]), 2)
 
             else:
@@ -860,7 +879,6 @@ class ForecastingJob:
         lstm.train(save=True, filename=save_file, split=split)
         self.set_trained_model(lstm)
         return self.trained_model
-
 
     def get_robots(self):
         return self.r1 + self.r2

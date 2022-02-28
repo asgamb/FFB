@@ -4,5 +4,7 @@ test/
 braine.log
 braineModule.py
 configBraine.conf
-test.py
 data/message.json
+testv1.py
+algorithms/lstmCpuDTv1.py
+algorithms/lstmCpuDTv2.py
