@@ -4,7 +4,14 @@ test/
 braine.log
 braineModule.py
 configBraine.conf
-data/message.json
+data/
+dataset/
 testv1.py
 algorithms/lstmCpuDTv1.py
 algorithms/lstmCpuDTv2.py
+runCollector
+configC.conf
+data/data_.csv
+data/dataset_train.csv
+algorithms/__pycache__/
+tools/__pycache__/

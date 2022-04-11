@@ -275,8 +275,8 @@ class _Forecasting(Resource):
                 topic = 'fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting'
             else:
                 log.info('Forecasting API: topic not created')
-                reqs[str(req_id)]['isActive'] = False
-                return "Kafka topic not created, aborting", 403
+                #reqs[str(req_id)]['isActive'] = False
+                #return "Kafka topic not created, aborting", 403
 
         reqs[str(req_id)]['kafkaTopic'] = topic
         metric = mconverter(metricSO)
@@ -324,7 +324,7 @@ class _Forecasting(Resource):
                 return "Scraper job not created aborting", 403
 
         #simple mapping
-        if nsdid == "DTPoC_nsDT_Forecasting_Test" and metric == "node_cpu_seconds_total":
+        if "DTPoC" in nsdid and metric == "node_cpu_seconds_total":
             model_forecasting = "lstmCPUEnhanced"
         else:
             model_forecasting = "lstmCPUBase"
@@ -342,10 +342,13 @@ class _Forecasting(Resource):
         #start the scraper for the additional application metrics
         # todo: development check with no mon platform
         if not devel:
-            for vnf, expr in reqs[str(req_id)]['metrics'].keys():
-                sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnf, metric=metric,
+            for metricx, vnf in reqs[str(req_id)]['metrics'].keys():
+                expr = reqs[str(req_id)]['metrics'][(metricx,vnf)]
+                log.info('Forecasting API: metric='+metricx+' and vnf='+vnf)
+                sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnf, metric=metricx,
                                              expression=expr, period=15)
                 reqs[str(req_id)]['scraperJob'].append(sId)
+                log.info('Forecasting API: scraper job lists='+str(reqs[str(req_id)]['scraperJob']))
 
         # single instance case
         if il == 1:
