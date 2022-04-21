@@ -101,12 +101,15 @@ class lstmcpudt:
         # define model
         self.model = Sequential()
         #model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=True), input_shape=x_train.shape[-2:]))
-        self.model.add(LSTM(100, activation='tanh', input_shape=X_train.shape[-2:]))
+        self.model.add(LSTM(100, activation='relu', input_shape=X_train.shape[-2:]))
         #self.model.add(LSTM(150, activation='tanh',return_sequences=True,input_shape=X_train.shape[-2:]))
         #self.model.add(LSTM(50, activation='tanh'))
         #self.model.add(Dense(units=10))
-        self.model.add(Dense(50, activation='tanh'))
-        self.model.add(Dense(10, activation='tanh'))
+        #test
+        #self.model.add(Dense(50, activation='tanh'))
+        #self.model.add(Dense(10, activation='tanh'))
+
+
         #self.model.add(Dropout(0.5))
         self.model.add(Dense(units=self.look_forward))
         self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
@@ -116,7 +119,7 @@ class lstmcpudt:
         checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mse',
                                      verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 
-        self.model.fit(X_train, y_train, epochs=1000, steps_per_epoch=25, shuffle=False, verbose=1,
+        self.model.fit(X_train, y_train, epochs=100, steps_per_epoch=25, shuffle=False, verbose=1,
                        callbacks=checkpoint)
         os.listdir(checkpoint_dir)
         self.model.load_weights(checkpoint_path)
@@ -129,18 +132,26 @@ class lstmcpudt:
         log.info("LSTM: Loading the lstm model from file {}".format(filename))
         self.model = load_model(filename)
         if "cpu" in self.main_feature:
-            self.mmscaler = joblib.load("trainedModels/lstmdt_10_4_mmscaler")
-            self.mmscaler_cpu = joblib.load("trainedModels/lstmdt_10_4_mmscaler_cpu")
+            self.mmscaler = joblib.load("trainedModels/lstm_mmscaler")
+            self.mmscaler_cpu = joblib.load("trainedModels/lstm_mmscaler_cpu")
         return self.model
 
     def predict(self, db):
-        log.debug("LSTM: Predicting the value")
+        log.debug("LSTM: Predicting the value enhanced")
+        print("test")
         data = self.data_preparation(db)
+        num = len(self.other_features)+1
+
         if data is not None:
             y_pred_inv = self.model.predict(data.to_numpy().reshape([1, 10, 7]))
+            print(y_pred_inv)
             y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred_inv)
-            temp = ["%.2f" % y_pred_inv]
-            return temp
+            #temp = ["%.2f" % y_pred_inv]
+            #return temp
+
+
+            log.info("len y pred inv {}".format(len(y_pred_inv)))
+            return y_pred_inv
         else:
             return 0
 

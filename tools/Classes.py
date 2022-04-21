@@ -848,7 +848,6 @@ class ForecastingJob:
             if len(value) > 1:
                 temp = []
                 for val in value:
-
                     temp.append(float(val) + float(self.t0[self.main_feature]))
                 return round(float(value[self.forward - 1]), 2)
 
