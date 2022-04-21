@@ -8,6 +8,7 @@ deleteKafka = 0
 
 startScraper = 0
 stopScraper = 0
+stopScraperList = 0
 stopProm = 1
 
 '''
@@ -20,9 +21,9 @@ example
         "IL" : 1
 }
 '''
-
-sj="f89e76a2-1f1c-44fe-b5d9-ec7f5c768257"
-pj="6f73f902-9278-4657-b486-5f51dbc864bb"
+sjs = []
+sj="e5700ffe-a548-4341-8dc3-5929205e2a6f"
+pj="041b9cb4-3cef-4519-8596-9caba0dbd277"
 
 nsId = "fgt-4f61c57-9ce2-441e-9919-7674dda57c9d"
 vnfdId =  "dtdtvvnf"
@@ -58,3 +59,7 @@ if stopProm:
     print(sId)
 
 
+if stopScraperList:
+    for sjdx in  sjs:
+      sId = ec.stopScraperJob(sjdx)
+      print(sId)

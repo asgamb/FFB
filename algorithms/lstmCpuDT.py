@@ -185,13 +185,13 @@ class lstmcpudt:
             joblib.dump(self.mmscaler, "trainedModels/lstm_mmscaler")
             joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
             # save scaler for future use
-            #print(df)
 
         else:
             temp = pandas.DataFrame()
             temp = pandas.concat([temp, temp_db[self.main_feature]])
             replica = self.other_features
-            replica.append(self.main_feature)
+            if self.main_feature not in replica:
+                replica.append(self.main_feature)
             df = pandas.DataFrame(
                 hstack([self.mmscaler.transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
                         self.mmscaler_cpu.transform(temp)]), columns=replica)

@@ -275,6 +275,7 @@ class _Forecasting(Resource):
                 topic = 'fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting'
             else:
                 log.info('Forecasting API: topic not created')
+                topic = 'fgt-'+nsid+'_forecasting'
                 #reqs[str(req_id)]['isActive'] = False
                 #return "Kafka topic not created, aborting", 403
 
@@ -295,7 +296,7 @@ class _Forecasting(Resource):
             reqs[str(req_id)]['metrics'][('rtt_latency', 'dtdtvvnf')] = 'rtt_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             #reqs[str(req_id)]['metrics'][('upstream_latency', 'dtdtvvnf')] = 'upstream_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             #reqs[str(req_id)]['metrics'][('packet_lost','dtdtvvnf')] = 'packet_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
-            reqs[str(req_id)]['metrics'][('total_cmd_sent', 'dtdtvvnf')] = 'tottal_cmd_sent{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            reqs[str(req_id)]['metrics'][('total_cmd_sent', 'dtdtvvnf')] = 'tottal_cmd_send{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             reqs[str(req_id)]['metrics'][('total_cmd_lost', 'dtdtvvnf')] = 'tottal_cmd_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
         elif "app_latency" in metric:
             '''

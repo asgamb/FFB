@@ -205,9 +205,7 @@ class ForecastingJob:
                                 names[instance]['timestamp'].append(t)
                             self.names = names
                             log.debug(self.instance_name + ": naming data acquired: \n{}".format(names))
-
                     elif "rtt" in m:
-                        self.set_temp['rtt_latency'] = True
                         rob = element['metric']['robot_id']
                         t = element['value'][0]
                         if 'rtt_id' not in self.temp.keys():
@@ -219,6 +217,9 @@ class ForecastingJob:
                             self.temp['rttv'] = []
                         val = round(float(element['value'][1]), 2)
                         self.temp['rttv'].append(val)
+                        log.debug(self.instance_name + ": robot {} rtt_latency {} received".format(rob, str(val)))
+                        log.debug(self.instance_name + ": temp db is:\n{} ".format(self.temp))
+                        self.set_temp['rtt_latency'] = True
                         '''
                     elif "upstream" in m:
                         self.set_temp['upstream_latency'] = True
@@ -234,8 +235,7 @@ class ForecastingJob:
                             self.temp['upv'] = []
                         self.temp['upv'].append(val)
                         '''
-                    elif "cmd_sent" in m:
-                        self.set_temp['cmd_sent'] = True
+                    elif "cmd_send" in m:
                         rob = element['metric']['robot_id']
                         t = element['value'][0]
                         val = round(float(element['value'][1]), 5)
@@ -247,8 +247,10 @@ class ForecastingJob:
                         if 'comsv' not in self.temp.keys():
                             self.temp['comsv'] = []
                         self.temp['comsv'].append(val)
+                        log.debug(self.instance_name + ": robot {} cmd_sent {} received".format(rob, str(val)))
+                        log.debug(self.instance_name + ": temp db is:\n{} ".format(self.temp))
+                        self.set_temp['cmd_sent'] = True
                     elif "cmd_lost" in m:
-                        self.set_temp['cmd_lost'] = True
                         rob = element['metric']['robot_id']
                         t = element['value'][0]
                         val = round(float(element['value'][1]), 5)
@@ -260,6 +262,9 @@ class ForecastingJob:
                         if 'comlv' not in self.temp.keys():
                             self.temp['comlv'] = []
                         self.temp['comlv'].append(val)
+                        log.debug(self.instance_name + ": robot {} cmd_lost {} received".format(rob, str(val)))
+                        log.debug(self.instance_name + ": temp db is:\n{} ".format(self.temp))
+                        self.set_temp['cmd_lost'] = True
             #self.inject_data()
             self.inject_data2()
         else:
@@ -438,8 +443,12 @@ class ForecastingJob:
                 log.info("{}->{}".format(label, self.data[label]))
 
     def inject_data2(self):
+        #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
+        #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
         if self.set_temp['node_cpu_seconds_total']:
+            log.debug("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXAll data received\n")
             temp1 = self.temp.copy()
+            log.debug("temp1 copy \n{}".format(temp1))
             if 'cpu' in temp1.keys():
                 for i in range(0, len(temp1['cpuv'])):
                     # string = string + ";" + str(temp1['cpuv'][i])
@@ -580,6 +589,9 @@ class ForecastingJob:
                 for label in self.data.keys():
                     log.debug("{}->{}".format(label, self.data[label]))
                 self.set_temp['node_cpu_seconds_total'] = False
+                self.set_temp['cmd_sent'] = False
+                self.set_temp['cmd_lost'] = False
+                self.set_temp['rtt_latency'] = False
                 if self.save:
                     self.savedata()
                 if self.producer is not None:
@@ -672,6 +684,9 @@ class ForecastingJob:
                 self.data[label].append(len(self.r2))
                 log.info("{}->{}".format(label, self.data[label]))
             self.set_temp['node_cpu_seconds_total'] = False
+            self.set_temp['cmd_sent'] = False
+            self.set_temp['cmd_lost'] = False
+            self.set_temp['rtt_latency'] = False
             if self.save:
                 self.savedata()
             #if self.producer is not None:
@@ -680,7 +695,7 @@ class ForecastingJob:
                 msg = self.create_json()
                 self.kafka_send(msg)
 
-        self.temp = {}
+            self.temp = {}
 
     def kafka_send(self, message):
         def delivery_callback(err, msg):
@@ -768,6 +783,12 @@ class ForecastingJob:
             self.main_feature = m_feature
         for feat in self.features:
             self.set_temp[feat] = False
+        #fix for label naming
+        self.set_temp['node_cpu_seconds_total'] = False
+        self.set_temp['rtt_latency'] = False
+        self.set_temp['cmd_sent'] = False
+        self.set_temp['cmd_lost'] = False
+
         if self.model == "lstmCPUBase":
             if load:
                 self.load_lstmcpubase(back, forward, loadfilename)
