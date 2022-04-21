@@ -26,6 +26,9 @@ from tensorflow import keras
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array , hstack
 import joblib
+from tensorflow.python.keras.callbacks import ModelCheckpoint
+import os
+
 
 import logging
 
@@ -51,8 +54,8 @@ class lstmcpudt:
         else:
             self.desired_accuracy = accuracy
         self.model = None
-        self.mmscaler = MinMaxScaler(feature_range=(0,1))
-        self.mmscaler_cpu = MinMaxScaler(feature_range=(0,1))
+        self.mmscaler = MinMaxScaler(feature_range=(0, 1))
+        self.mmscaler_cpu = MinMaxScaler(feature_range=(0, 1))
         
         self.n_features = len(features)
         self.other_features = features
@@ -107,9 +110,17 @@ class lstmcpudt:
         #self.model.add(Dropout(0.5))
         self.model.add(Dense(units=self.look_forward))
         self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
-        self.model.fit(X_train, y_train, epochs=100, steps_per_epoch=25, shuffle=False, verbose=1)
-        #print(str(self.model.predict(X_train[0].reshape([1,10,7]))))
-        #print(str(y_train[0]))
+        #checkpoint_filepath = 'checkpoint'
+        checkpoint_path = "training_1/cp.ckpt"
+        checkpoint_dir = os.path.dirname(checkpoint_path)
+        checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mse',
+                                     verbose=1, save_best_only=True, save_weights_only=True, mode='min')
+
+        self.model.fit(X_train, y_train, epochs=1000, steps_per_epoch=25, shuffle=False, verbose=1,
+                       callbacks=checkpoint)
+        os.listdir(checkpoint_dir)
+        self.model.load_weights(checkpoint_path)
+
         if save:
             self.model.save(filename)
         return self.model
@@ -163,9 +174,11 @@ class lstmcpudt:
 
     def data_preparation(self, db, train=False):
         temp_db = pandas.DataFrame()
-
+        #pandas.options.dispay.float_format = “{:,.5f}”.format
+        pandas.set_option('display.float_format', lambda x: f'{x:,.5f}')
         if train:
             df = pandas.read_csv(self.train_file, sep=";", header=0 )
+            #df = df.astype(float)
         else:
             df = pandas.DataFrame(db)
 

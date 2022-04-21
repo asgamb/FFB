@@ -15,3 +15,4 @@ data/data_.csv
 data/dataset_train.csv
 algorithms/__pycache__/
 tools/__pycache__/
+training_1/
