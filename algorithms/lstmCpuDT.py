@@ -62,7 +62,8 @@ class lstmcpudt:
         self.main_feature = main_feature
         self.scaler_db ={}
 
-    def split_sequences(self,dataset, target, start, end, window, horizon):
+    def split_sequences(self, dataset, target, start, end, window, horizon):
+         # all features, main feature, 0, None, 10, 1
          X = []
          y = []
          start = start + window
@@ -101,13 +102,13 @@ class lstmcpudt:
         # define model
         self.model = Sequential()
         #model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=True), input_shape=x_train.shape[-2:]))
-        self.model.add(LSTM(100, activation='relu', input_shape=X_train.shape[-2:]))
-        #self.model.add(LSTM(150, activation='tanh',return_sequences=True,input_shape=X_train.shape[-2:]))
-        #self.model.add(LSTM(50, activation='tanh'))
+        self.model.add(LSTM(150, activation='relu', input_shape=X_train.shape[-2:]))
+        #self.model.add(LSTM(150, activation='tanh', return_sequences=True, input_shape=X_train.shape[-2:]))
+        #self.model.add(LSTM(50, activation='relu'))
         #self.model.add(Dense(units=10))
         #test
-        #self.model.add(Dense(50, activation='tanh'))
-        #self.model.add(Dense(10, activation='tanh'))
+        self.model.add(Dense(50, activation='relu'))
+        self.model.add(Dense(10, activation='relu'))
 
 
         #self.model.add(Dropout(0.5))
@@ -119,7 +120,7 @@ class lstmcpudt:
         checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mse',
                                      verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 
-        self.model.fit(X_train, y_train, epochs=100, steps_per_epoch=25, shuffle=False, verbose=1,
+        self.model.fit(X_train, y_train, epochs=400, steps_per_epoch=25, shuffle=False, verbose=1,
                        callbacks=checkpoint)
         os.listdir(checkpoint_dir)
         self.model.load_weights(checkpoint_path)
@@ -140,16 +141,12 @@ class lstmcpudt:
         log.debug("LSTM: Predicting the value enhanced")
         print("test")
         data = self.data_preparation(db)
-        num = len(self.other_features)+1
-
+        num = self.n_features + 1
         if data is not None:
-            y_pred_inv = self.model.predict(data.to_numpy().reshape([1, 10, 7]))
-            print(y_pred_inv)
-            y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred_inv)
-            #temp = ["%.2f" % y_pred_inv]
-            #return temp
-
-
+            y_pred_inv = self.model.predict(data.to_numpy().reshape([1, self.look_backward, num]))
+            #print(y_pred_inv)
+            #no scaling cpu
+            #y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred_inv)
             log.info("len y pred inv {}".format(len(y_pred_inv)))
             return y_pred_inv
         else:
@@ -158,38 +155,13 @@ class lstmcpudt:
     def set_train_file(self, file):
         self.train_file = file
 
-    '''
-    def predict_deep(self, dataset_test, start, end, last):
-
-        # prepare test data X
-        dataset_test_X = dataset_test[start:end, :]
-        test_X_new = dataset_test_X.reshape(1, dataset_test_X.shape[0], dataset_test_X.shape[1])
-        #dataset_test_y = y_test[end:last, :]
-        df = pandas.read_csv("algorithms/dataset_test.csv", sep=";", header=0)
-
-        df = df.drop(labels=0, axis=0)
-        cpu0 = df[self.main_feature].values
-
-        cpu0 = cpu0.reshape((len(cpu0), 1))
-
-        y_pred = self.model.predict(test_X_new)
-        y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred)
-        print(y_pred_inv)
-        #no need of reshape (1x1 value)
-        #y_pred_inv = y_pred_inv.reshape(self.look_forward, 1)
-
-        #y_pred_inv = y_pred_inv[:, 0]
-
-        return y_pred_inv
-    '''
 
     def data_preparation(self, db, train=False):
         temp_db = pandas.DataFrame()
         #pandas.options.dispay.float_format = “{:,.5f}”.format
         pandas.set_option('display.float_format', lambda x: f'{x:,.5f}')
         if train:
-            df = pandas.read_csv(self.train_file, sep=";", header=0 )
-            #df = df.astype(float)
+            df = pandas.read_csv(self.train_file, sep=";", header=0)
         else:
             df = pandas.DataFrame(db)
 
@@ -204,11 +176,19 @@ class lstmcpudt:
             temp = pandas.concat([temp, temp_db[self.main_feature]])
             replica = self.other_features
             replica.append(self.main_feature)
+            #scaling
+            #df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
+            #                              self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
+            #partial scaling
             df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
-                                          self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
-            joblib.dump(self.mmscaler, "trainedModels/lstm_mmscaler")
-            joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
+                        temp]), columns=replica)
+            # no scaling
+            #df = pandas.DataFrame(hstack([temp_db.loc[:, temp_db.columns != self.main_feature],
+            #            temp]), columns=replica)
+
             # save scaler for future use
+            joblib.dump(self.mmscaler, "trainedModels/lstm_mmscaler")
+            #joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
 
         else:
             temp = pandas.DataFrame()
@@ -216,7 +196,15 @@ class lstmcpudt:
             replica = self.other_features
             if self.main_feature not in replica:
                 replica.append(self.main_feature)
+            #scaling
+            #df = pandas.DataFrame(
+            #    hstack([self.mmscaler.transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
+            #            self.mmscaler_cpu.transform(temp)]), columns=replica)
+            #partial scaling
             df = pandas.DataFrame(
                 hstack([self.mmscaler.transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
-                        self.mmscaler_cpu.transform(temp)]), columns=replica)
+                        temp]), columns=replica)
+            # no scaling
+            #df = pandas.DataFrame(
+                #hstack([temp_db.loc[:, temp_db.columns != self.main_feature],temp]), columns=replica)
         return df
