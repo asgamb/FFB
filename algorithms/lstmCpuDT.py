@@ -139,15 +139,19 @@ class lstmcpudt:
 
     def predict(self, db):
         log.debug("LSTM: Predicting the value enhanced")
+        log.info("data {}".format(db))
         data = self.data_preparation(db)
+        log.info("data after the preparation {}".format(data))
+
         num = self.n_features + 1
         if data is not None:
-            y_pred_inv = self.model.predict(data.to_numpy().reshape([1, self.look_backward, num]))
-            #print(y_pred_inv)
+            y_pred = self.model.predict(data.to_numpy().reshape([1, self.look_backward, num]))
+            #print(y_pred)
             #no scaling cpu
-            #y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred_inv)
-            log.info("len y pred inv {}".format(len(y_pred_inv)))
-            return y_pred_inv
+            #y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred)
+            #log.info("len y pred inv {}".format(len(y_pred_inv)))
+            #return y_pred_inv
+            return y_pred
         else:
             return 0
 

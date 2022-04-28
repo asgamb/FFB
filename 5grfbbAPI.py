@@ -699,6 +699,7 @@ class _PrometheusExporter(Resource):
                     value = f.get_forecasting_value(5, 2)
                 elif f.get_model() == "lstmCPUEnhanced":
                     value = f.get_forecasting_value(10, 1)
+                    log.info("5GrAPI: the fprecasting value is {}".format(value))
                 metric = reqs[str(job_id)].get('performanceMetric')
                 if testForecasting == 0:
                     # creating replicas for the average data
