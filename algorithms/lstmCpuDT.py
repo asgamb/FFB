@@ -169,8 +169,10 @@ class lstmcpudt:
             df = pandas.DataFrame(db)
 
         for feature in self.other_features:
+            log.info("feature {}".format(feature))
             temp_db[feature] = df[feature].values
-        temp_db[self.main_feature] = df[self.main_feature].values - df[self.main_feature].values[0]
+        #temp_db[self.main_feature] = df[self.main_feature].values - df[self.main_feature].values[0]
+        temp_db[self.main_feature] = df[self.main_feature].values
 
         if train:
             #replica is an array containing the list of features (including the main)
