@@ -139,7 +139,6 @@ class lstmcpudt:
 
     def predict(self, db):
         log.debug("LSTM: Predicting the value enhanced")
-        print("test")
         data = self.data_preparation(db)
         num = self.n_features + 1
         if data is not None:

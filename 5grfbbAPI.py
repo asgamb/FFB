@@ -698,7 +698,7 @@ class _PrometheusExporter(Resource):
                 elif f.get_model() == "lstmCPUBase":
                     value = f.get_forecasting_value(5, 2)
                 elif f.get_model() == "lstmCPUEnhanced":
-                    value = f.get_forecasting_value(10, 4)
+                    value = f.get_forecasting_value(10, 1)
                 metric = reqs[str(job_id)].get('performanceMetric')
                 if testForecasting == 0:
                     # creating replicas for the average data

@@ -636,6 +636,11 @@ class ForecastingJob:
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
+                    elif len(self.data[label]) > self.batch_size:
+                        diff = len(self.data[label]) - self.batch_size
+                        log.info("::::ATTENTION:::Deleting {} samples from the list".format(diff))
+                        for i in range(0, diff+1):
+                            del self.data[label][i]
                 else:
                     self.data[label] = []
                 if len(self.r1) != 0:
@@ -647,6 +652,11 @@ class ForecastingJob:
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
                         del self.data[label][0]
+                    elif len(self.data[label]) > self.batch_size:
+                        diff = len(self.data[label]) - self.batch_size
+                        log.info("::::ATTENTION:::Deleting {} samples from the list".format(diff))
+                        for i in range(0, diff+1):
+                            del self.data[label][i]
                 else:
                     self.data[label] = []
                 if len(self.r2) != 0:
@@ -841,9 +851,10 @@ class ForecastingJob:
                         if "#robots" not in label:
                             log.debug(self.instance_name + ": feature {} has low number of samples ".format(label))
                             return 0.0
-            log.debug(self.instance_name + ": all features have enough samples {} ".format(self.data))
+            log.info("TESTING: data samples \n{} ".format(self.data))
             value = self.trained_model.predict(self.data)
             if len(value) == 1:
+                log.info("TESTING: T0 is {}, value is {} ".format(self.t0[self.main_feature], value[0]))
                 return round((float(value[0]) + self.t0[self.main_feature]), 2)
             if len(value) > 1:
                 temp = []
