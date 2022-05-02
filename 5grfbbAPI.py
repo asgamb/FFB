@@ -401,7 +401,7 @@ class _Forecasting(Resource):
 
         #todo: development check with no mon platform
         if not devel:
-            pId = ec.startPrometheusJob(vnfdid, nsid, 15, req_id)
+            pId = ec.startPrometheusJob(vnfdid, nsid, scraping_period, req_id)
             if pId is not None:
                 # print("Prometheus job "+ str(pId)+ " started")
                 log.info('Forecasting API: Prometheus job ' + pId + ' created')
@@ -756,7 +756,6 @@ if __name__ == '__main__':
         devel = True if int(config['local']['development']) == 1 else False
         save = True if int(config['local']['save_dataset']) == 1 else False
         scraping_period = int(config['local']['scraping_period'])
-
     else:
         port = PORT
     if 'AIML' in config:
