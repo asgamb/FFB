@@ -237,6 +237,7 @@ class _Forecasting(Resource):
         global reqs
         global ec
 
+        scraping_period = 5
         request_data = request.get_json()
         log.info('Forecasting API: new job requested \n' + str(request_data))
         # input data in the payload in json format
@@ -314,7 +315,7 @@ class _Forecasting(Resource):
         # todo: development check with no mon platform
         if not devel:
             sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnfdid, metric=metric,
-                                 expression=expression, period=15)
+                                 expression=expression, period=scraping_period)
             reqs[str(req_id)]['scraperJob'].append(sId)
             if sId is not None:
                 # print("scraper job "+ str(sId)+ " started")
@@ -347,7 +348,7 @@ class _Forecasting(Resource):
                 expr = reqs[str(req_id)]['metrics'][(metricx,vnf)]
                 log.info('Forecasting API: metric='+metricx+' and vnf='+vnf)
                 sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnf, metric=metricx,
-                                             expression=expr, period=15)
+                                             expression=expr, period=scraping_period)
                 reqs[str(req_id)]['scraperJob'].append(sId)
                 log.info('Forecasting API: scraper job lists='+str(reqs[str(req_id)]['scraperJob']))
 
@@ -754,6 +755,7 @@ if __name__ == '__main__':
         testForecasting = int(config['local']['testingEnabled'])
         devel = True if int(config['local']['development']) == 1 else False
         save = True if int(config['local']['save_dataset']) == 1 else False
+        scraping_period = int(config['local']['scraping_period'])
 
     else:
         port = PORT

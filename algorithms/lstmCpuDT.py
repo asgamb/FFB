@@ -64,16 +64,17 @@ class lstmcpudt:
 
     def split_sequences(self, dataset, target, start, end, window, horizon):
          # all features, main feature, 0, None, 10, 1
+         future = 3
          X = []
          y = []
          start = start + window
          if end is None:
              end = len(dataset) - horizon
-         for i in range(start, end-3):
+         for i in range(start, end-future):
              indices = range(i-window, i)
              X.append(dataset[indices])
              #prendo la quarta y -> y(t+4)
-             indicey = range(i+3, i+3+horizon)
+             indicey = range(i+future, i+future+horizon)
              y.append(target[indicey])
          return np.array(X), np.array(y)
 
@@ -107,9 +108,8 @@ class lstmcpudt:
         #self.model.add(LSTM(50, activation='relu'))
         #self.model.add(Dense(units=10))
         #test
-        self.model.add(Dense(50, activation='relu'))
+        #self.model.add(Dense(50, activation='relu'))
         self.model.add(Dense(10, activation='relu'))
-
 
         #self.model.add(Dropout(0.5))
         self.model.add(Dense(units=self.look_forward))
@@ -120,8 +120,11 @@ class lstmcpudt:
         checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mse',
                                      verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 
-        self.model.fit(X_train, y_train, epochs=400, steps_per_epoch=25, shuffle=False, verbose=1,
+        #self.model.fit(X_train, y_train, epochs=400, steps_per_epoch=25, shuffle=False, verbose=1,
+        #               callbacks=checkpoint)
+        self.model.fit(X_train, y_train, epochs=400, shuffle=False, verbose=1,
                        callbacks=checkpoint)
+
         os.listdir(checkpoint_dir)
         self.model.load_weights(checkpoint_path)
 
