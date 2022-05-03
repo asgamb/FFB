@@ -615,15 +615,18 @@ class ForecastingJob:
                 # avg_coms = sum(temp1['comsv']) / len(temp1['comsv'])
                 for i in range(0, len(temp1['comlv'])):
                     lv = int(temp1['comlv'][i])
-                    sv = int(temp1['comsv'][i])
-                    if temp1['coml_id'][i] in self.r1:
-                        lv_a1 = lv_a1 + lv
-                        sv_a1 = sv_a1 + sv
-                    elif temp1['coml_id'][i] in self.r2:
-                        lv_a2 = lv_a2 + lv
-                        sv_a2 = sv_a2 + sv
-                    elif temp1['coml_id'][i] in self.other_robs:
-                        log.info("Robot handled {} by other jobs ".format(temp1['coml_id'][i]))
+                    sv = 0
+                    if i < len(temp1['comsv']):
+                        sv = int(temp1['comsv'][i])
+                    if sv != 0:
+                        if temp1['coml_id'][i] in self.r1:
+                            lv_a1 = lv_a1 + lv
+                            sv_a1 = sv_a1 + sv
+                        elif temp1['coml_id'][i] in self.r2:
+                            lv_a2 = lv_a2 + lv
+                            sv_a2 = sv_a2 + sv
+                        elif temp1['coml_id'][i] in self.other_robs:
+                            log.info("Robot handled {} by other jobs ".format(temp1['coml_id'][i]))
                 if sv_a1 != 0:
                     l_a1 = round(float(lv_a1 / sv_a1), 5)
                 else:
