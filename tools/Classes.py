@@ -210,6 +210,8 @@ class ForecastingJob:
                         t = element['value'][0]
                         if 'rtt_id' not in self.temp.keys():
                             self.temp['rtt_id'] = []
+                        if rob in self.temp['rtt_id'] or "." in rob:
+                            continue
                         self.temp['rtt_id'].append(rob)
                         if 'time' not in self.temp.keys():
                             self.temp['time'] = t
@@ -241,6 +243,8 @@ class ForecastingJob:
                         val = round(float(element['value'][1]), 5)
                         if 'coms_id' not in self.temp.keys():
                             self.temp['coms_id'] = []
+                        if rob in self.temp['coms_id'] or "." in rob:
+                            continue
                         self.temp['coms_id'].append(rob)
                         if 'time' not in self.temp.keys():
                             self.temp['time'] = t
@@ -256,6 +260,8 @@ class ForecastingJob:
                         val = round(float(element['value'][1]), 5)
                         if 'coml_id' not in self.temp.keys():
                             self.temp['coml_id'] = []
+                        if rob in self.temp['coml_id'] or "." in rob:
+                            continue
                         self.temp['coml_id'].append(rob)
                         if 'time' not in self.temp.keys():
                             self.temp['time'] = t
@@ -467,7 +473,6 @@ class ForecastingJob:
                     log.debug(
                         self.instance_name + " forecasting Job, current data for {}, after the addition: \n{}".format(
                             label, self.data[label]))
-
             if 'rttv' in temp1.keys():
                 val_a1 = 0.0
                 val_a2 = 0.0
