@@ -99,7 +99,7 @@ class lstmcpudt:
         end = None
         X_train, y_train = self.split_sequences(X, y, start, end, window=self.look_backward, horizon=self.look_forward)
 
-        opt = keras.optimizers.Adam(learning_rate=0.0001)
+        opt = keras.optimizers.Adam(learning_rate=0.001)
         # define model
         self.model = Sequential()
         #model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=True), input_shape=x_train.shape[-2:]))
@@ -122,7 +122,7 @@ class lstmcpudt:
 
         #self.model.fit(X_train, y_train, epochs=400, steps_per_epoch=25, shuffle=False, verbose=1,
         #               callbacks=checkpoint)
-        self.model.fit(X_train, y_train, epochs=400, shuffle=False, verbose=1,
+        self.model.fit(X_train, y_train, epochs=200, shuffle=False, verbose=1,
                        callbacks=checkpoint)
 
         os.listdir(checkpoint_dir)
@@ -160,7 +160,6 @@ class lstmcpudt:
 
     def set_train_file(self, file):
         self.train_file = file
-
 
     def data_preparation(self, db, train=False):
         temp_db = pandas.DataFrame()
