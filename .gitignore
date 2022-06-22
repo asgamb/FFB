@@ -11,7 +11,8 @@ algorithms/lstmCpuDTv1.py
 algorithms/lstmCpuDTv2.py
 runCollector
 configC.conf
-data/data_.csv
+data/data_20.csv
+data/data_20nh.csv
 data/dataset_train.csv
 algorithms/__pycache__/
 tools/__pycache__/

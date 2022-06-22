@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 il = 1
-load = test = plot = False
+load = test = plot = True
 
 if load is True:
     save = False
@@ -19,8 +19,8 @@ else:
 
 modelFile = 'trainedModels/lstm5sec.h5'
 #modelFile = 'trainedModels/lstm_120_4.h5'
-dataload = 'data/data.csv'
-traindata = 'data/data_.csv'
+dataload = 'data/data_20nh.csv'
+traindata = 'data/data_20.csv'
 
 fj = ForecastingJob("test", "test", "lstmCPUEnhanced", "node_cpu_seconds_total", il, "dtcontrolvnf-1", outTopic=None,
                     output=None)

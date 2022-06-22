@@ -1,4 +1,4 @@
-cpu0;avg_rtt_a1;avg_rtt_a2;avg_loss_a1;avg_loss_a2;r_a1;r_a2;cpu0
+cpu0;avg_rtt_a1;avg_rtt_a2;avg_loss_a1;avg_loss_a2;r_a1;r_a2
 0.0;0.0;0.0;0.0;0.0;0;0
 5.81;0.0;0.0;0.0;0.0;0;0
 10.61;0.0;0.0;0.0;0.0;0;0
