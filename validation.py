@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 il = 1
 load = test = plot = True
 
+diff = True
 if load is True:
     save = False
 else:
@@ -19,13 +20,13 @@ else:
 
 modelFile = 'trainedModels/lstm5sec.h5'
 #modelFile = 'trainedModels/lstm_120_4.h5'
-dataload = 'data/data_20nh.csv'
-traindata = 'data/data_20.csv'
+dataload = 'data/data_20robotsnh.csv'
+traindata = 'data/data_20robots.csv'
 
 fj = ForecastingJob("test", "test", "lstmCPUEnhanced", "node_cpu_seconds_total", il, "dtcontrolvnf-1", outTopic=None,
                     output=None)
 #input and output features
-steps_back = 2
+steps_back = 150 #130 to include two peaks
 steps_forw = 1
 if load:
     # input model file to be loaded (no train)
@@ -37,8 +38,10 @@ else:
     loadfile = traindata
 #output model file
 savefile = modelFile
-features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+features = []
+#features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
 #features = ['avg_rtt_a1', 'avg_rtt_a2', 'r_a1', 'r_a2']
+features = ['r_a1', 'r_a2']
 main_feature = 'cpu0'
 
 fj.set_model(steps_back, steps_forw, load, loadfile, save, features, main_feature, savefile)
@@ -102,13 +105,16 @@ if test:
             fj.config_t0(main_feature, t0)
             setT0 = False
         fj.set_data(data)
-        value = fj.get_forecasting_value(10, 1)
+        if diff:
+            value = fj.get_forecasting_value(10, 1)-t0
+        else:
+            value = fj.get_forecasting_value(10, 1)
         fut = db['cpu0'][fval-1]
         #mmscaler_cpu = joblib.load("trainedModels/lstm_mmscaler_cpu")
         #print(mmscaler_cpu.transform([[fut]]))
         print("t0={}\tT+4={}\tforecast={}".format(t0, fut, value))
         start = start + 1
-        file2.write("{};{};{} \n".format(db['cpu0'][end-1], fut, value))
+        file2.write("{};{};{} \n".format(db[main_feature][end-1], fut, value))
 file2.close()
 
 if plot:

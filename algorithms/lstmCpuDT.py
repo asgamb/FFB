@@ -13,27 +13,30 @@
 # limitations under the License.
 
 # python and projects imports
+from unicodedata import bidirectional
 import pandas
 import numpy as np
-from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.models import load_model
-from tensorflow.python.keras.layers import LSTM, Dense, Activation
-from tensorflow.python.keras.layers import Dense
-from tensorflow.python.keras.layers import RepeatVector
-from tensorflow.python.keras.layers import TimeDistributed
-from tensorflow.python.keras.callbacks import Callback
+
 from tensorflow import keras
+from keras.models import Sequential
+from keras.models import load_model
+from keras.layers import LSTM, Input,Bidirectional,Dense, Dropout, Activation, Conv1D,Flatten,MaxPooling1D,AveragePooling1D, GRU
+from keras.layers import Dense
+from keras.regularizers import L1L2
+from keras.layers import RepeatVector
+from keras.callbacks import Callback
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array , hstack
 import joblib
-from tensorflow.python.keras.callbacks import ModelCheckpoint
+import tensorflow as tf
+from keras.callbacks import ModelCheckpoint
 import os
+from sklearn.svm import SVR
 
-
+import matplotlib.pyplot as plt
 import logging
 
 log = logging.getLogger("Forecaster")
-
 
 class lstmcpudt:
     def __init__(self, file, ratio, back, forward, accuracy, features, main_feature):
@@ -76,13 +79,16 @@ class lstmcpudt:
              #prendo la quarta y -> y(t+4)
              indicey = range(i+future, i+future+horizon)
              y.append(target[indicey])
+            
+             
          return np.array(X), np.array(y)
+
+
 
 
     # train the model
     def train(self, save, filename, split):
-        '''
-
+        ''' 
         class mycallback(Callback):
             def on_epoch_end(self, epoch, logs={}):
                 if (logs.get('accuracy') is not None and logs.get('accuracy') >= 0.65):
@@ -97,22 +103,45 @@ class lstmcpudt:
         
         start = 0
         end = None
-        X_train, y_train = self.split_sequences(X, y, start, end, window=self.look_backward, horizon=self.look_forward)
 
-        opt = keras.optimizers.Adam(learning_rate=0.001)
+        X_train, y_train = self.split_sequences(X, y, start, end, window=self.look_backward, horizon=self.look_forward)
+        print(X_train)
+        opt = keras.optimizers.Adam()
         # define model
         self.model = Sequential()
+        #self.model.add(Input(shape=(X_train.shape[-2:])))
         #model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=True), input_shape=x_train.shape[-2:]))
-        self.model.add(LSTM(150, activation='relu', input_shape=X_train.shape[-2:]))
-        #self.model.add(LSTM(150, activation='tanh', return_sequences=True, input_shape=X_train.shape[-2:]))
+        #kernel_regularizer=l2(0.05),recurrent_regularizer=l2(0.05)
+        #self.model.add(Bidirectional(LSTM(10, return_sequences=False,dropout=0.2), input_shape=X_train.shape[-2:]))
+        #self.model.add(Bidirectional(LSTM(10)))
+        
+        
+        #così bene o male segue
+        self.model.add(LSTM(80,activation='tanh',input_shape=X_train.shape[-2:],recurrent_regularizer=L1L2(0.05)))
+        #self.model.add(LSTM(32, activation='tanh'))
+        #self.model.add(Conv1D(filters=32, kernel_size=2, activation='relu', input_shape=(X_train.shape[-2:])))
+        
+        #self.model.add(LSTM(10))
+        #self.model.add(Dense(1))
+        #self.model.add(AveragePooling1D(pool_size=2))
+        #self.model.add(Conv1D(filters=1024, kernel_size=1, activation='relu'))
+        #self.model.add(AveragePooling1D(pool_size=2))
+        #self.model.add(Flatten())
+        #self.model.add(LSTM(50, activation='relu'))#, return_sequences=True, input_shape=X_train.shape[-2:]))
         #self.model.add(LSTM(50, activation='relu'))
-        #self.model.add(Dense(units=10))
+        self.model.add(Dense(units=128,activation='tanh'))
+        
+        self.model.add(Dense(units=100,activation='tanh'))
+        
+        #self.model.add(Dense(units=128,activation='tanh'))
         #test
-        #self.model.add(Dense(50, activation='relu'))
-        self.model.add(Dense(10, activation='relu'))
+        
+        #self.model.add(Dense(128, activation='tanh'))
+        
+        #self.model.add(Dense(10, activation='relu'))
 
-        #self.model.add(Dropout(0.5))
-        self.model.add(Dense(units=self.look_forward))
+        self.model.add(Dense(units=self.look_forward,activation='linear'))
+        
         self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
         #checkpoint_filepath = 'checkpoint'
         checkpoint_path = "training_1/cp.ckpt"
@@ -127,6 +156,26 @@ class lstmcpudt:
 
         os.listdir(checkpoint_dir)
         self.model.load_weights(checkpoint_path)
+
+        
+        train_prediction = self.model.predict(X_train)
+        print(X_train[0])
+        print(train_prediction)
+        #prediction_pad=np.pad(train_prediction,(len(train_prediction)+4,0),'constant', constant_values=np.nan)
+        print(train_prediction.shape)
+        #train_prediction = train_prediction.reshape(2416,1)
+        print(y_train.shape)
+        
+        #print(y_train.shape)
+
+        plt.plot(train_prediction,label='forecasting')
+        plt.plot(y_train,label='t+4')
+        tmp_to_plot = pandas.read_csv('data/data_20robots.csv',header=0,sep=';')
+        tmp_to_plot = self.mmscaler_cpu.transform(np.roll(tmp_to_plot['cpu0'].to_numpy(),-150).reshape(-1,1))
+
+        plt.plot(tmp_to_plot,label='t')
+        plt.legend()
+        plt.show()
 
         if save:
             self.model.save(filename)
@@ -151,9 +200,9 @@ class lstmcpudt:
             y_pred = self.model.predict(data.to_numpy().reshape([1, self.look_backward, num]))
             #print(y_pred)
             #no scaling cpu
-            #y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred)
+            y_pred_inv = self.mmscaler_cpu.inverse_transform(y_pred)
             #log.info("len y pred inv {}".format(len(y_pred_inv)))
-            #return y_pred_inv
+            return y_pred_inv
             return y_pred
         else:
             return 0
@@ -183,19 +232,22 @@ class lstmcpudt:
             temp = pandas.concat([temp, temp_db[self.main_feature]])
             replica = self.other_features
             replica.append(self.main_feature)
+            print(temp)
             #scaling
-            #df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
-            #                              self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
-            #partial scaling
             df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
-                        temp]), columns=replica)
+                                          self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
+
+            #partial scaling
+            #df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
+            #    temp]), columns=replica)
+            
             # no scaling
             #df = pandas.DataFrame(hstack([temp_db.loc[:, temp_db.columns != self.main_feature],
             #            temp]), columns=replica)
 
             # save scaler for future use
             joblib.dump(self.mmscaler, "trainedModels/lstm_mmscaler")
-            #joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
+            joblib.dump(self.mmscaler_cpu, "trainedModels/lstm_mmscaler_cpu")
 
         else:
             temp = pandas.DataFrame()
@@ -210,7 +262,7 @@ class lstmcpudt:
             #partial scaling
             df = pandas.DataFrame(
                 hstack([self.mmscaler.transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
-                        temp]), columns=replica)
+                        self.mmscaler_cpu.transform(temp)]), columns=replica)
             # no scaling
             #df = pandas.DataFrame(
                 #hstack([temp_db.loc[:, temp_db.columns != self.main_feature],temp]), columns=replica)
