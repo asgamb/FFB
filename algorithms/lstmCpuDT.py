@@ -17,19 +17,19 @@ from unicodedata import bidirectional
 import pandas
 import numpy as np
 
-from tensorflow import keras
-from keras.models import Sequential
-from keras.models import load_model
-from keras.layers import LSTM, Input,Bidirectional,Dense, Dropout, Activation, Conv1D,Flatten,MaxPooling1D,AveragePooling1D, GRU
-from keras.layers import Dense
-from keras.regularizers import L1L2
-from keras.layers import RepeatVector
-from keras.callbacks import Callback
+from tensorflow.python import keras
+from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.models import load_model
+from tensorflow.python.keras.layers import LSTM, Input,Bidirectional,Dense, Dropout, Activation, Conv1D,Flatten,MaxPooling1D,AveragePooling1D, GRU
+from tensorflow.python.keras.layers import Dense
+from tensorflow.python.keras.regularizers import L1L2
+from tensorflow.python.keras.layers import RepeatVector
+from tensorflow.python.keras.callbacks import Callback
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array , hstack
 import joblib
 import tensorflow as tf
-from keras.callbacks import ModelCheckpoint
+from tensorflow.python.keras.callbacks import ModelCheckpoint
 import os
 from sklearn.svm import SVR
 

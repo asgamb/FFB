@@ -294,11 +294,13 @@ class _Forecasting(Resource):
             '''
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", mode=\"idle\", forecasted=\"no\"}"
             #reqs[str(req_id)]['metrics'][('node_cpu_seconds_total', vnfdid)] = expression
+            '''
             reqs[str(req_id)]['metrics'][('rtt_latency', 'dtdtvvnf')] = 'rtt_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             #reqs[str(req_id)]['metrics'][('upstream_latency', 'dtdtvvnf')] = 'upstream_latency{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             #reqs[str(req_id)]['metrics'][('packet_lost','dtdtvvnf')] = 'packet_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             reqs[str(req_id)]['metrics'][('total_cmd_sent', 'dtdtvvnf')] = 'tottal_cmd_send{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
             reqs[str(req_id)]['metrics'][('total_cmd_lost', 'dtdtvvnf')] = 'tottal_cmd_lost{nsId=\"' + nsid + '\", vnfdId=\"dtdtvvnf\"}'
+            '''
         elif "app_latency" in metric:
             '''
                 app_latency example
@@ -396,7 +398,7 @@ class _Forecasting(Resource):
                     log.debug('Forecasting API: sub forecasting job created ' + fj.str())
                     active_jobs[str(req_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
                 i = i + 1
-
+        print("ok")
         # create Prometheus job pointing to the exporter
 
         #todo: development check with no mon platform
@@ -414,6 +416,7 @@ class _Forecasting(Resource):
             # print("pj=\""+ str(pId)+ "\"")
             # print("sj=\""+ str(sId)+ "\"")
             reqs[str(req_id)]['prometheusJob'] = pId
+        print("ok")
         return str(req_id), 200
 
     @staticmethod
@@ -575,6 +578,30 @@ class _ForecastingSetIL(Resource):
         else:
             log.info('Forecasting API: PUT IL, job not found ' + job_id)
             return 'Forecasting job not found', 404
+
+@restApi.route('/robots/<string:nsid>/<string:r1>/<string:r2>')
+@restApi.response(200, 'Success')
+@restApi.response(404, 'Not found')
+class _Robots(Resource):
+    @restApi.doc(description="handling robots update messages")
+    # def get(self, job_id, vnfd_id):
+    def post(self, nsid, r1, r2):
+        global active_jobs
+        global reqs
+        #log.info('Prometeheus Exporter: new metric request for nsid=' + nsid + ' and vnfdid=' + vnfd_id)
+
+        is_exists = False
+        job_id = None
+        for key in reqs.keys():
+            if str(reqs[str(key)].get('nsId')) == str(nsid):
+                job_id = str(key)
+                is_exists = True
+                break
+        if not is_exists:
+            return 'Forecasting job not found', 404
+        f = active_jobs[str(job_id)].get('job')
+        f.set_robots(int(r1), int(r2))
+        return 'Robots updated', 200
 
 
 # @prometheusApi.route('/metrics/<string:job_id>/<string:vnfd_id>')

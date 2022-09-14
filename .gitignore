@@ -18,3 +18,6 @@ algorithms/__pycache__/
 tools/__pycache__/
 training_1/
 plotter.py
+data_converter.py
+post.py
+config.conf

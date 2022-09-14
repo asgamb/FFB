@@ -64,6 +64,8 @@ class ForecastingJob:
         self.set_temp = {}
         self.r1 = []
         self.r2 = []
+        self.len_r1 = 0
+        self.len_r2 = 0
         self.other_robs = []
         self.back = 10
         self.forward = 4
@@ -273,6 +275,7 @@ class ForecastingJob:
                         self.set_temp['cmd_lost'] = True
             #self.inject_data()
             self.inject_data2()
+            self.inject_data3()
         else:
             log.error("Forecasting Job: model not supported")
 
@@ -715,6 +718,58 @@ class ForecastingJob:
 
             self.temp = {}
 
+    def inject_data3(self):
+        #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
+        #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
+        if self.set_temp['node_cpu_seconds_total']:
+            log.debug("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXAll data received\n")
+            temp1 = self.temp.copy()
+            log.debug("temp1 copy \n{}".format(temp1))
+            if 'cpu' in temp1.keys():
+                for i in range(0, len(temp1['cpuv'])):
+                    # string = string + ";" + str(temp1['cpuv'][i])
+                    label = "cpu" + str(temp1['cpu'][i])
+                    if label in self.data.keys():
+                        if len(self.data[label]) == self.batch_size:
+                            del self.data[label][0]
+                            log.debug(self.instance_name + " forecasting Job, Deleting older element: \n{}".format(
+                                self.data[label]))
+                    else:
+                        self.data[label] = []
+                    if not label in self.set_t0.keys() or not self.set_t0[label]:
+                        self.t0[label] = temp1['cpuv'][i]
+                        self.set_t0[label] = True
+                    self.data[label].append(round(temp1['cpuv'][i]-self.t0[label], 2))
+                    log.debug(
+                        self.instance_name + " forecasting Job, current data for {}, after the addition: \n{}".format(
+                            label, self.data[label]))
+                label = "r_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(self.len_r1)
+                log.info("{}->{}".format(label, self.data[label]))
+                label = "r_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(self.len_r2)
+                log.info("{}->{}".format(label, self.data[label]))
+            self.set_temp['node_cpu_seconds_total'] = False
+            if self.save:
+                self.savedata()
+            #if self.producer is not None:
+            #    self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
+            if self.producer is not None:
+                msg = self.create_json()
+                self.kafka_send(msg)
+
+            self.temp = {}
+
     def kafka_send(self, message):
         def delivery_callback(err, msg):
             if err:
@@ -737,7 +792,6 @@ class ForecastingJob:
         print(val)
         print(self.loaded_json)
         return self.loaded_json
-
 
     def get_names(self):
         return self.names
@@ -832,6 +886,7 @@ class ForecastingJob:
                 csv_file.write(string)
                 csv_file.close()
 
+
     def get_forecasting_value(self, n_features, desired):
         if self.model == "Test":
             return round(float(np.sum(self.data.astype(np.float)) / len(self.data)), 2)
@@ -921,6 +976,11 @@ class ForecastingJob:
 
     def get_robots(self):
         return self.r1 + self.r2
+
+    def set_robots(self, r1, r2):
+        self.len_r1 = r1
+        self.len_r2 = r2
+        log.info("robot value updated to: r1={}, r2={}".format(r1, r2))
 
     def set_update_robots(self, val):
         self.update_robots = val
