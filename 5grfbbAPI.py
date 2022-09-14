@@ -359,10 +359,12 @@ class _Forecasting(Resource):
             log.debug('Forecasting API: Single instance detected')
             fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
             log.debug('Forecasting API: forecasting job created ' + fj.str())
-            steps_back = 10
+            steps_back = 150
             steps_forw = 1
-            modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
-            features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+            #modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
+            #features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+            modelName = 'trainedModels/lstm5sec.h5'
+            features = ['r_a1', 'r_a2']
             main_feature = 'cpu0'
 
             fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
@@ -381,8 +383,8 @@ class _Forecasting(Resource):
                 instance = vnfdid + '-' + str(i)
                 instances.append(instance)
                 fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, i, instance)
-                steps_back = 10
-                steps_forw = 4
+                steps_back = 150
+                steps_forw = 1
                 modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
                 features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
                 main_feature = 'cpu0'
