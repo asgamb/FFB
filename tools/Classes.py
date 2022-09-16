@@ -274,7 +274,7 @@ class ForecastingJob:
                         log.debug(self.instance_name + ": temp db is:\n{} ".format(self.temp))
                         self.set_temp['cmd_lost'] = True
             #self.inject_data()
-            self.inject_data2()
+            #self.inject_data2()
             self.inject_data3()
         else:
             log.error("Forecasting Job: model not supported")
@@ -846,6 +846,7 @@ class ForecastingJob:
 
     def set_model(self, back, forward, load, loadfilename, save, features=None, m_feature=None, savefilename=None):
         self.back = back
+        self.batch_size = back
         self.forward = forward
         if savefilename is None:
             savefilename = "trainedModels/defaultModel.h5"

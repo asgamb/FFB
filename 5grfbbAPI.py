@@ -400,7 +400,7 @@ class _Forecasting(Resource):
                     log.debug('Forecasting API: sub forecasting job created ' + fj.str())
                     active_jobs[str(req_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
                 i = i + 1
-        print("ok")
+        #print("ok")
         # create Prometheus job pointing to the exporter
 
         #todo: development check with no mon platform
@@ -418,7 +418,7 @@ class _Forecasting(Resource):
             # print("pj=\""+ str(pId)+ "\"")
             # print("sj=\""+ str(sId)+ "\"")
             reqs[str(req_id)]['prometheusJob'] = pId
-        print("ok")
+        #print("ok")
         return str(req_id), 200
 
     @staticmethod
