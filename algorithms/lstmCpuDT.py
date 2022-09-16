@@ -20,11 +20,12 @@ import numpy as np
 from tensorflow.python import keras
 from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.models import load_model
-from tensorflow.python.keras.layers import LSTM, Input,Bidirectional,Dense, Dropout, Activation, Conv1D,Flatten,MaxPooling1D,AveragePooling1D, GRU
+from tensorflow.python.keras .layers import LSTM, Input,Bidirectional,Dense, Dropout, Activation, Conv1D,Flatten,MaxPooling1D,AveragePooling1D, GRU
 from tensorflow.python.keras.layers import Dense
 from tensorflow.python.keras.regularizers import L1L2
 from tensorflow.python.keras.layers import RepeatVector
 from tensorflow.python.keras.callbacks import Callback
+from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array , hstack
 import joblib
@@ -84,8 +85,6 @@ class lstmcpudt:
          return np.array(X), np.array(y)
 
 
-
-
     # train the model
     def train(self, save, filename, split):
         ''' 
@@ -106,7 +105,7 @@ class lstmcpudt:
 
         X_train, y_train = self.split_sequences(X, y, start, end, window=self.look_backward, horizon=self.look_forward)
         print(X_train)
-        opt = keras.optimizers.Adam()
+        opt = Adam(learning_rate=0.00001)
         # define model
         self.model = Sequential()
         #self.model.add(Input(shape=(X_train.shape[-2:])))
@@ -117,21 +116,22 @@ class lstmcpudt:
         
         
         #così bene o male segue
-        self.model.add(LSTM(80,activation='tanh',input_shape=X_train.shape[-2:],recurrent_regularizer=L1L2(0.05)))
+        #self.model.add(LSTM(20,activation="tanh",input_shape=X_train.shape[-2:]))
+        #self.model.add(GRU(32,activation="tanh"))
         #self.model.add(LSTM(32, activation='tanh'))
-        #self.model.add(Conv1D(filters=32, kernel_size=2, activation='relu', input_shape=(X_train.shape[-2:])))
+        self.model.add(Conv1D(filters=128, kernel_size=21, activation='tanh', input_shape=(X_train.shape[-2:])))
         
         #self.model.add(LSTM(10))
         #self.model.add(Dense(1))
         #self.model.add(AveragePooling1D(pool_size=2))
-        #self.model.add(Conv1D(filters=1024, kernel_size=1, activation='relu'))
+        #self.model.add(Conv1D(filters=256, kernel_size=2, activation='tanh'))
         #self.model.add(AveragePooling1D(pool_size=2))
-        #self.model.add(Flatten())
+        self.model.add(Flatten())
         #self.model.add(LSTM(50, activation='relu'))#, return_sequences=True, input_shape=X_train.shape[-2:]))
         #self.model.add(LSTM(50, activation='relu'))
-        self.model.add(Dense(units=128,activation='tanh'))
+        #self.model.add(Dense(units=64,activation='tanh'))
         
-        self.model.add(Dense(units=100,activation='tanh'))
+        self.model.add(Dense(units=64,activation='tanh'))
         
         #self.model.add(Dense(units=128,activation='tanh'))
         #test
@@ -142,16 +142,16 @@ class lstmcpudt:
 
         self.model.add(Dense(units=self.look_forward,activation='linear'))
         
-        self.model.compile(loss='mse', optimizer=opt, metrics=['mse'])
+        self.model.compile(loss='mean_squared_logarithmic_error', optimizer=opt, metrics=['mean_squared_logarithmic_error'])
         #checkpoint_filepath = 'checkpoint'
         checkpoint_path = "training_1/cp.ckpt"
         checkpoint_dir = os.path.dirname(checkpoint_path)
-        checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mse',
+        checkpoint = ModelCheckpoint(filepath=checkpoint_path, monitor='mean_squared_logarithmic_error',
                                      verbose=1, save_best_only=True, save_weights_only=True, mode='min')
 
         #self.model.fit(X_train, y_train, epochs=400, steps_per_epoch=25, shuffle=False, verbose=1,
         #               callbacks=checkpoint)
-        self.model.fit(X_train, y_train, epochs=200, shuffle=False, verbose=1,
+        self.model.fit(X_train, y_train, epochs=1000, shuffle=False, verbose=1,
                        callbacks=checkpoint)
 
         os.listdir(checkpoint_dir)
@@ -160,7 +160,10 @@ class lstmcpudt:
         
         train_prediction = self.model.predict(X_train)
         print(X_train[0])
+        print("train prediction")
         print(train_prediction)
+        print("train real")
+        print(y_train)
         #prediction_pad=np.pad(train_prediction,(len(train_prediction)+4,0),'constant', constant_values=np.nan)
         print(train_prediction.shape)
         #train_prediction = train_prediction.reshape(2416,1)
@@ -170,8 +173,8 @@ class lstmcpudt:
 
         plt.plot(train_prediction,label='forecasting')
         plt.plot(y_train,label='t+4')
-        tmp_to_plot = pandas.read_csv('data/data_20robots.csv',header=0,sep=';')
-        tmp_to_plot = self.mmscaler_cpu.transform(np.roll(tmp_to_plot['cpu0'].to_numpy(),-150).reshape(-1,1))
+        tmp_to_plot = pandas.read_csv('./demo_dataset.csv',header=0,sep=';')
+        tmp_to_plot = self.mmscaler_cpu.transform(np.roll(tmp_to_plot['cpu0'].to_numpy(),-self.look_backward).reshape(-1,1))
 
         plt.plot(tmp_to_plot,label='t')
         plt.legend()
@@ -224,7 +227,7 @@ class lstmcpudt:
             temp_db[feature] = df[feature].values
         #temp_db[self.main_feature] = df[self.main_feature].values - df[self.main_feature].values[0]
         temp_db[self.main_feature] = df[self.main_feature].values
-
+        
         if train:
             #replica is an array containing the list of features (including the main)
             # temp is a dataframe containing the main feature
@@ -236,7 +239,9 @@ class lstmcpudt:
             #scaling
             df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
                                           self.mmscaler_cpu.fit_transform(temp)]), columns=replica)
-
+            df.plot(subplots=True)
+            plt.tight_layout()
+            plt.show()
             #partial scaling
             #df = pandas.DataFrame(hstack([self.mmscaler.fit_transform(temp_db.loc[:, temp_db.columns != self.main_feature]),
             #    temp]), columns=replica)
