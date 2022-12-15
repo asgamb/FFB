@@ -25,6 +25,8 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from algorithms.lstmCpu import lstmcpu
 from algorithms.lstmCpuDT import lstmcpudt
+#from algorithms.lstmRAMDT import lstmramdt
+from algorithms.convRAMDT import lstmramdt
 
 import logging
 import copy
@@ -72,13 +74,14 @@ class ForecastingJob:
         self.features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
         self.main_feature = 'cpu0'
         self.update_robots = True
-        self.csv = "data/data_.csv"
+        self.csv = "data/ds_.csv"
         self.save = False
         self.t0 = {}
         self.set_t0 = {}
         self.producer = output
         self.outTopic = outTopic
         self.loaded_json = {}
+        self.previous_value = 0
 
         if os.path.isfile(self.csv):
             [root, end] = self.csv.split('.')
@@ -275,7 +278,39 @@ class ForecastingJob:
                         self.set_temp['cmd_lost'] = True
             #self.inject_data()
             #self.inject_data2()
-            self.inject_data3()
+            self.inject_dataCPU()
+        if self.model == "convRAM":
+
+            loaded_json = json.loads(json_data)
+            for element in loaded_json:
+                mtype = element['type_message']
+                if mtype == "metric":
+                    instance = element['metric']['instance']
+                    m = element['metric']['__name__']
+                    if instance == self.instance_name:
+                       if "MemFree" in m:
+                          t = element['value'][0]
+                          val = int(element['value'][1])
+                          if 'time' not in self.temp.keys():
+                             self.temp['time'] = t
+                          if 'memfv' not in self.temp.keys():
+                             self.temp['memfv'] = []
+                          self.temp['memfv'].append(val)
+                          log.debug(self.instance_name + ": Feee memory message received = {}".format(str(val)))
+                          self.set_temp['node_memory_MemFree_bytes'] = True
+                          if instance not in names.keys():
+                              names[instance] = True
+                       if "MemTotal" in m:
+                          val = int(element['value'][1])
+                          if not m in self.set_t0.keys() or not self.set_t0[m]:
+                             self.t0[m] = val
+                             self.set_t0[m] = True
+                          if instance not in names.keys():
+                              names[instance] = True
+                          log.debug(self.instance_name + ": Total memory message received = {}".format(str(val)))
+            self.names = names
+                     
+            self.inject_dataRAM()
         else:
             log.error("Forecasting Job: model not supported")
 
@@ -695,7 +730,7 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 self.data[label].append(len(self.r1))
-                log.info("{}->{}".format(label, self.data[label]))
+                log.info(self.instance_name + ": {}->{}".format(label, self.data[label]))
                 label = "r_a2"
                 if label in self.data.keys():
                     if len(self.data[label]) == self.batch_size:
@@ -703,7 +738,7 @@ class ForecastingJob:
                 else:
                     self.data[label] = []
                 self.data[label].append(len(self.r2))
-                log.info("{}->{}".format(label, self.data[label]))
+                log.info(self.instance_name + ": {}->{}".format(label, self.data[label]))
             self.set_temp['node_cpu_seconds_total'] = False
             self.set_temp['cmd_sent'] = False
             self.set_temp['cmd_lost'] = False
@@ -718,7 +753,83 @@ class ForecastingJob:
 
             self.temp = {}
 
-    def inject_data3(self):
+
+    '''
+       if self.model == "convRAM":
+            loaded_json = json.loads(json_data)
+            for element in loadeda_json:
+                mtype = element['type_message']
+                if mtype == "metric":
+                    m = element['metric']['__name__']
+                    if "MemFree" in m:
+                       t = element['value'][0]
+                       val = int(element['value'][1])
+                       if 'time' not in self.temp.keys():
+                         self.temp['time'] = t
+                       if 'memfv' not in temp.keys():
+                         self.temp['memfv'] = []
+                       self.temp['memfv'].append(val)
+                       log.debug(self.instance_name + ": Feee memory message received = {}".format(str(val)))
+                       set_temp['node_memory_MemFree_bytes'] = True
+
+    '''
+
+    def inject_dataRAM(self):
+        #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
+        #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
+        if len(self.set_temp.keys()) > 0:
+          if self.set_temp['node_memory_MemFree_bytes']:
+            log.debug("RAM data received\n")
+            temp1 = self.temp.copy()
+            log.debug("temp1 copy \n{}".format(temp1))
+            if 'memfv' in temp1.keys():
+                for i in range(0, len(temp1['memfv'])):
+                    # string = string + ";" + str(temp1['cpuv'][i])
+                    label = "memory_free"
+                    if label in self.data.keys():
+                        if len(self.data[label]) == self.batch_size:
+                            del self.data[label][0]
+                            log.debug(self.instance_name + " forecasting Job, Deleting older element: \n{}".format(
+                                self.data[label]))
+                    else:
+                        self.data[label] = []
+                    if not label in self.set_t0.keys() or not self.set_t0[label]:
+                        self.t0[label] = temp1['memfv'][i]
+                        self.set_t0[label] = True
+                    self.data[label].append(self.t0[label] - temp1['memfv'][i])
+                    log.debug(
+                        self.instance_name + " forecasting Job, current data for {}, after the addition: \n{}".format(
+                            label, self.data[label]))
+                label = "r_a1"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(self.len_r1)
+                log.info("{}: {}->{}".format(self.instance_name, label, self.data[label]))
+                label = "r_a2"
+                if label in self.data.keys():
+                    if len(self.data[label]) == self.batch_size:
+                        del self.data[label][0]
+                else:
+                    self.data[label] = []
+                self.data[label].append(self.len_r2)
+                log.info("{}: {}->{}".format(self.instance_name, label, self.data[label]))
+            self.set_temp['node_memory_MemFree_bytes'] = False
+            if self.save:
+                self.savedata()
+            #if self.producer is not None:
+            #    self.kafka_send(str(self.get_forecasting_value(self.back, self.forward)))
+            if self.producer is not None:
+                msg = self.create_json()
+                self.kafka_send(msg)
+
+            self.temp = {}
+
+
+
+    def inject_dataCPU(self):
         #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
         #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
         if self.set_temp['node_cpu_seconds_total']:
@@ -793,6 +904,14 @@ class ForecastingJob:
         print(self.loaded_json)
         return self.loaded_json
 
+
+    def get_t0(self, label):
+        if self.set_t0[label]:
+            return self.t0[label]
+        else:
+            return 1
+
+
     def get_names(self):
         return self.names
 
@@ -814,6 +933,11 @@ class ForecastingJob:
                 else:
                     # no error -> message received
                     if self.model == "lstmCPUEnhanced":
+                        if self.producer is not None:
+                            self.loaded_json = json.loads(msg.value())
+                            print(json.dumps(self.loaded_json, indent=4, sort_keys=True))
+                        self.data_parser2(msg.value())
+                    elif self.model == "convRAM":
                         if self.producer is not None:
                             self.loaded_json = json.loads(msg.value())
                             print(json.dumps(self.loaded_json, indent=4, sort_keys=True))
@@ -886,6 +1010,25 @@ class ForecastingJob:
                 string = string[:-1] + "\n"
                 csv_file.write(string)
                 csv_file.close()
+        if self.model == "convRAM":
+            if load:
+                self.load_model_dt(back, forward, loadfilename)
+            else:
+                self.train_model_dt(800, loadfilename, savefilename)
+            #save collected data on csb file
+            if save:
+                self.save = True
+                #csv file initialization and header drop
+                csv_file = open(self.csv, "w")
+                listx = []
+                listx.append(self.main_feature)
+                listx = listx + self.features
+                string = ""
+                for m in listx:
+                    string = string + str(m) + ";"
+                string = string[:-1] + "\n"
+                csv_file.write(string)
+                csv_file.close()
 
 
     def get_forecasting_value(self, n_features, desired):
@@ -913,13 +1056,19 @@ class ForecastingJob:
                 for label in self.data.keys():
                     if len(self.data[label]) < self.back:
                         if "#robots" not in label:
-                            log.debug(self.instance_name + ": feature {} has low number of samples ".format(label))
+                            log.debug(self.instance_name + ": feature {} has only {} samples ".format(label, len(self.data[label])))
                             return 0.0
-            log.info("TESTING: data samples \n{} ".format(self.data))
+            log.debug("TESTING: data samples \n{} ".format(self.data))
             value = self.trained_model.predict(self.data)
             if len(value) == 1:
-                log.info("TESTING: T0 is {}, value is {} ".format(self.t0[self.main_feature], value[0]))
-                return round((float(value[0]) + self.t0[self.main_feature]), 2)
+                log.debug("TESTING: T0 is {}, value is {} ".format(self.t0[self.main_feature], value[0]))
+                val = round((float(value[0]) + self.t0[self.main_feature]), 2)
+                if val > self.previous_value:
+                    self.previous_value = val
+                    #return round((float(value[0]) + self.t0[self.main_feature]), 2)
+                    return val
+                else:
+                    return self.previous_value
             if len(value) > 1:
                 temp = []
                 for val in value:
@@ -928,6 +1077,43 @@ class ForecastingJob:
 
             else:
                 return 0.0
+
+        elif self.model == "convRAM":
+            log.debug(self.instance_name + ": forecasting value for convRAM instance ")
+            total_mem = self.t0["node_memory_MemTotal_bytes"]
+            if len(self.data.keys()) == 0:
+                log.debug("No data in the db")
+                return total_mem
+            else:
+                for label in self.data.keys():
+                    if len(self.data[label]) < self.back:
+                        if "#robots" not in label:
+                            log.debug(self.instance_name + ": feature {} has only {} samples ".format(label, len(self.data[label])))
+                            return total_mem
+            log.debug("TESTING: data samples \n{} ".format(self.data))
+            value = self.trained_model.predict(self.data)
+            if len(value) == 1:
+                log.debug("TESTING: T0 is {}, value is {} ".format(self.t0[self.main_feature], value[0]))
+                val = int(self.t0[self.main_feature])-int(value[0])
+                return val
+                '''
+                if val > self.previous_value:
+                    self.previous_value = val
+                    #return round((float(value[0]) + self.t0[self.main_feature]), 2)
+                    return val
+                else:
+                    return self.previous_value
+            if len(value) > 1:
+                temp = []
+                for val in value:
+                    temp.append(float(val) + float(self.t0[self.main_feature]))
+                return round(float(value[self.forward - 1]), 2)
+                '''
+
+            else:
+                return total_mem
+
+
         else:
             return 0.0
 
@@ -950,10 +1136,12 @@ class ForecastingJob:
     def load_model_dt(self, back, forward, filename):
         log.debug(self.instance_name + ": forecasting Job, loading the LSTM enhanced forecasting model")
 
-        lstm = lstmcpudt(None, None, back, forward, None, self.features, self.main_feature)
-
-        lstm.load_trained_model(filename)
-        self.set_trained_model(lstm)
+        if self.model == "lstmCPUEnhanced":
+            model = lstmcpudt(None, None, back, forward, None, self.features, self.main_feature)
+        if self.model == "convRAM":
+            model = lstmramdt(None, None, back, forward, None, self.features, self.main_feature)
+        model.load_trained_model(filename)
+        self.set_trained_model(model)
         return self.trained_model
 
     def train_model1(self, ratio, back, forward, data_file, model_file):
@@ -970,10 +1158,18 @@ class ForecastingJob:
     def train_model_dt(self, split, load_file, save_file):
         if load_file is None:
             load_file = "data/dataset_train.csv"
-        lstm = lstmcpudt(load_file, split, self.back, self.forward, 0.90, self.features, self.main_feature)
-        lstm.train(save=True, filename=save_file, split=split)
-        self.set_trained_model(lstm)
+        if self.model == "lstmCPUEnhanced":
+            model = lstmcpudt(load_file, split, self.back, self.forward, 0.90, self.features, self.main_feature)
+        if self.model == "convRAM":
+            model = lstmramdt(load_file, split, self.back, self.forward, 0.90, self.features, self.main_feature)
+        model.train(save=True, filename=save_file, split=split)
+        self.set_trained_model(model)
         return self.trained_model
+
+
+    def get_num_robots(self):
+        return (self.len_r1, self.len_r2)
+
 
     def get_robots(self):
         return self.r1 + self.r2
@@ -981,7 +1177,7 @@ class ForecastingJob:
     def set_robots(self, r1, r2):
         self.len_r1 = r1
         self.len_r2 = r2
-        log.info("robot value updated to: r1={}, r2={}".format(r1, r2))
+        log.info(self.instance_name + ": robot value updated to: r1={}, r2={}".format(r1, r2))
 
     def set_update_robots(self, val):
         self.update_robots = val

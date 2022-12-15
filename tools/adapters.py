@@ -25,6 +25,8 @@ def mconverter(value):
         metric = "node_cpu_seconds_total"
     elif value == "latency":
         metric = "app_latency"
+    elif value == "VmemoryUsageMean":
+        metric = "node_memory_MemFree_bytes"
     else:
         metric = None
     return metric

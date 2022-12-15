@@ -99,7 +99,7 @@ class ExternalConnections:
                 return 0
 
     def createKafkaTopic_free(self, topic):
-        print(self.kIp + ":" + str(self.kPort))
+        #print(self.kIp + ":" + str(self.kPort))
         new_topics = []
         broker = self.kIp + ":" + str(self.kPort)
         client = AdminClient({'bootstrap.servers' : broker})
@@ -257,6 +257,7 @@ class ExternalConnections:
                 resources = rsp.read()
                 resp = resources.decode("utf-8")
                 log.debug("External Connector: Deleted scaper job reply: {}".format(resp))
+                #print(resp)
                 conn.close()
                 return 1
             except ConnectionRefusedError:

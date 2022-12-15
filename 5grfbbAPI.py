@@ -79,7 +79,7 @@ prometheusApi = api.namespace('', description='REST API used by the Prometheus e
 config = configparser.ConfigParser()
 # logging configuration
 # logging.basicConfig(format='%(asctime)s :: %(message)s', level=logging.DEBUG, filename='5grfbb.log')
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.DEBUG, filename='5grfbb.log')
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO, filename='5grfbb.log')
 log = logging.getLogger("APIModule")
 
 testForecasting = 0
@@ -105,49 +105,60 @@ class SummMessages(object):
         self.dict_number = {}
 
     def add(self, element):
-        global testForecasting
         metric = element.get("metric")
+        name = element.get("name")
         del element['metric']
         del element['job']
-        name = element.get("name")
-        cpu = element.get("cpu")
-        mode = element.get("mode")
-        time = element.get("timestamp")
         del element['name']
-        del element['cpu']
-        del element['mode']
-        del element['timestamp']
+        if "cpu" in metric or "CPU" in metric or "Cpu" in metric:
+           cpu = element.get("cpu")
+           mode = element.get("mode")
+           time = element.get("timestamp")
+           del element['cpu']
+           del element['mode']
+           del element['timestamp']
 
-        if testForecasting == 0:
-            if "cpu" or "CPU" or "Cpu" in metric:
-                host = name + '::' + cpu + '::' + mode + '::' + str(time)
-                for key, value in element.items():
-                    if key in self.dict_sum.keys():
-                        if host in self.dict_sum[key].keys():
-                            self.dict_sum[key][host] += value
-                            self.dict_number[key][host] += 1
-                        else:
-                            self.dict_sum[key].update({host: value})
-                            self.dict_number[key].update({host: 1})
+        
+        if "cpu" in metric or "CPU" in metric or "Cpu" in metric:
+            host = name + '::' + cpu + '::' + mode + '::' + str(time)
+            for key, value in element.items():
+                if key in self.dict_sum.keys():
+                    if host in self.dict_sum[key].keys():
+                        self.dict_sum[key][host] += value
+                        self.dict_number[key][host] += 1
                     else:
-                        self.dict_sum.update({key: {host: value}})
-                        self.dict_number.update({key: {host: 1}})
-        else:
-            input_val = element.get("input")
-            del element['input']
-            if "cpu" or "CPU" or "Cpu" in metric:
-                host = name + '::' + cpu + '::' + mode + '::' + str(time) + '::' + input_val
-                for key, value in element.items():
-                    if key in self.dict_sum.keys():
-                        if host in self.dict_sum[key].keys():
-                            self.dict_sum[key][host] += value
-                            self.dict_number[key][host] += 1
-                        else:
-                            self.dict_sum[key].update({host: value})
-                            self.dict_number[key].update({host: 1})
+                        self.dict_sum[key].update({host: value})
+                        self.dict_number[key].update({host: 1})
+                else:
+                    self.dict_sum.update({key: {host: value}})
+                    self.dict_number.update({key: {host: 1}})
+        if "memory_MemFree" in metric:
+            host = name
+            for key, value in element.items():
+                if key in self.dict_sum.keys():
+                    if host in self.dict_sum[key].keys():
+                        self.dict_sum[key][host] += value
+                        self.dict_number[key][host] += 1
                     else:
-                        self.dict_sum.update({key: {host: value}})
-                        self.dict_number.update({key: {host: 1}})
+                        self.dict_sum[key].update({host: value})
+                        self.dict_number[key].update({host: 1})
+                else:
+                    self.dict_sum.update({key: {host: value}})
+                    self.dict_number.update({key: {host: 1}})
+        if "memory_MemTotal" in metric:
+            host = name
+            for key, value in element.items():
+                if key in self.dict_sum.keys():
+                    if host in self.dict_sum[key].keys():
+                        self.dict_sum[key][host] += value
+                        self.dict_number[key][host] += 1
+                    else:
+                        self.dict_sum[key].update({host: value})
+                        self.dict_number[key].update({host: 1})
+                else:
+                    self.dict_sum.update({key: {host: value}})
+                    self.dict_number.update({key: {host: 1}})
+
 
     def get_result(self):
         dict_result = {}
@@ -189,7 +200,7 @@ class CustomCollector(object):
         metrics = []
         for parameter, values in result.items():
             if testForecasting == 0:
-                if "cpu" or "CPU" or "Cpu" in parameter:
+                if "cpu" in parameter or "CPU" in parameter or "Cpu" in parameter:
                     for value in values:
                         [instance, cpu, mode, t] = str(value['host']).split('::', 3)
                         # labels = [cpu, mode, instance, t]
@@ -199,8 +210,28 @@ class CustomCollector(object):
                         gmf.add_metric(labels, value['value'])
                         #gmf.add_metric(labels, "%.2f" % float(value['value']))
                         metrics.append(gmf)
+                if "memory_MemFree" in parameter:
+                    for value in values:
+                        instance = str(value['host'])
+                        # labels = [cpu, mode, instance, t]
+                        # gmf = GaugeMetricFamily(parameter, "avg_" + parameter, labels=['cpu', 'mode', 'instance', 'timestamp'])
+                        labels = [instance]
+                        gmf = GaugeMetricFamily(parameter, "avg_" + parameter, labels=['instance'])
+                        gmf.add_metric(labels, value['value'])
+                        #gmf.add_metric(labels, "%.2f" % float(value['value']))
+                        metrics.append(gmf)
+                if "memory_MemTotal" in parameter:
+                    for value in values:
+                        instance = str(value['host'])
+                        # labels = [cpu, mode, instance, t]
+                        # gmf = GaugeMetricFamily(parameter, "avg_" + parameter, labels=['cpu', 'mode', 'instance', 'timestamp'])
+                        labels = [instance]
+                        gmf = GaugeMetricFamily(parameter, "avg_" + parameter, labels=['instance'])
+                        gmf.add_metric(labels, value['value'])
+                        #gmf.add_metric(labels, "%.2f" % float(value['value']))
+                        metrics.append(gmf)
             else:
-                if "cpu" or "CPU" or "Cpu" in parameter:
+                if "cpu" in parameter or "CPU" in parameter or "Cpu" in parameter:
                     for value in values:
                         [instance, cpu, mode, t, input_val] = str(value['host']).split('::', 4)
                         # labels = [cpu, mode, instance, t]
@@ -257,7 +288,9 @@ class _Forecasting(Resource):
         # dynamic request_id creation
         # todo: development check with no mon platform
         if not devel:
-            req_id = uuid.uuid1()
+            #req_id = uuid.uuid1()
+            #todo: fix for testing
+            req_id = "64189e60-6684-11ed-9f52-fa163e96b497"
         else:
             # static id (only for development purpose)
             req_id = "1aa0c8e6-c26e-11eb-a8ba-782b46c1eefd"
@@ -276,7 +309,7 @@ class _Forecasting(Resource):
                 topic = 'fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f_forecasting'
             else:
                 log.info('Forecasting API: topic not created')
-                topic = 'fgt-'+nsid+'_forecasting'
+                topic = nsid+'_forecasting'
                 #reqs[str(req_id)]['isActive'] = False
                 #return "Kafka topic not created, aborting", 403
 
@@ -287,11 +320,6 @@ class _Forecasting(Resource):
             return "Problem converting the metric", 403
         # create scraper job and update the reqs dict
         if "node_cpu_seconds_total" in metric:
-            '''
-               node_cpu_seconds_total{ cpu = "0", exporter = "node_exporter", forecasted = "no", instance = "dtdtvvnf-1",
-                         job = "9581e637-345b-42f8-849f-1cd89f24221d", mode = "idle",
-                         nsId = "fgt-4f61c57-9ce2-441e-9919-7674dda57c9d", vnfdId = "dtdtvvnf"}
-            '''
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", mode=\"idle\", forecasted=\"no\"}"
             #reqs[str(req_id)]['metrics'][('node_cpu_seconds_total', vnfdid)] = expression
             '''
@@ -308,14 +336,22 @@ class _Forecasting(Resource):
                             instance_id="fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f-0-dtdtvvnf-1", 
                             job="e3cc978f-965c-4aa1-9189-50ad5719309f", nsId="fgt-6e44566-121b-4b8a-ba59-7cd0be562d4f", 
                             robot_id="10.10.10.221", vnfdId="dtdtvvnf"}
+                exporter = "app_latencydt_exporter", forecasted = "no", robot_id = "10.10.10.221", vnfdId = "dtdtvvnf"}
             '''
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", forecasted=\"no\"}"
-            # exporter = "app_latencydt_exporter", forecasted = "no", robot_id = "10.10.10.221", vnfdId = "dtdtvvnf"}
+        elif "node_memory" in metric:
+            '''
+            node_memory_MemFree_bytes{nsId="fgt-a3b70e2-6471-4f78-9d04-96e6671401f4",vnfdId="dtcontrolvnf"}
+            '''
+            expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", forecasted=\"no\"}"
+            #to be activated to get total memory
+            reqs[str(req_id)]['metrics'][('node_memory_MemTotal_bytes', 'dtcontrolvnf')] = "node_memory_MemTotal_bytes{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", forecasted=\"no\"}"
         else:
             expression = metric + "{nsId=\"" + nsid + "\", vnfdId=\"" + vnfdid + "\", forecasted=\"no\"}"
-
+        #fix to avoid problem with scraper job already present
+        already_working = False
         # todo: development check with no mon platform
-        if not devel:
+        if not devel or not already_working:
             sId = ec.startScraperJob(nsid=nsid, topic=topic, vnfdid=vnfdid, metric=metric,
                                  expression=expression, period=scraping_period)
             reqs[str(req_id)]['scraperJob'].append(sId)
@@ -330,6 +366,8 @@ class _Forecasting(Resource):
         #simple mapping
         if "DTPoC" in nsdid and metric == "node_cpu_seconds_total":
             model_forecasting = "lstmCPUEnhanced"
+        if "DTPoC" in nsdid and metric == "node_memory_MemFree_bytes":
+            model_forecasting = "convRAM"
         else:
             model_forecasting = "lstmCPUBase"
 
@@ -363,12 +401,18 @@ class _Forecasting(Resource):
             steps_forw = 1
             #modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
             #features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
-            #modelName = 'trainedModels/lstm5sec.h5'
-            modelName = 'trainedModels/lstm_4.h5'
-
-            features = ['r_a1', 'r_a2']
-            main_feature = 'cpu0'
-
+            if model_forecasting == "lstmCPUEnhanced":
+               modelName = 'trainedModels/lstm5sec.h5'
+               features = ['r_a1', 'r_a2']
+               main_feature = 'cpu0'
+            elif model_forecasting == "convRAM":
+               modelName = 'trainedModels/convRAM_130.h5'
+               steps_back = 130
+               features = ['r_a1', 'r_a2']
+               main_feature = 'memory_free'
+            else:
+               features = ['r_a1', 'r_a2']
+               main_feature = 'cpu0'
             fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
             event = Event()
             t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
@@ -376,6 +420,7 @@ class _Forecasting(Resource):
             active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
             reqs[str(req_id)]['instance_name'] = instances[0]
         # in case of multiple instances
+        '''
         # todo: to be verified in case of multiple attivation for the robot classification
         else:
             log.debug("Forecasting API: {} instances detected".format(str(il)))
@@ -402,10 +447,8 @@ class _Forecasting(Resource):
                     log.debug('Forecasting API: sub forecasting job created ' + fj.str())
                     active_jobs[str(req_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
                 i = i + 1
-        #print("ok")
+        '''
         # create Prometheus job pointing to the exporter
-
-        #todo: development check with no mon platform
         if not devel:
             pId = ec.startPrometheusJob(vnfdid, nsid, scraping_period, req_id)
             if pId is not None:
@@ -416,18 +459,27 @@ class _Forecasting(Resource):
                 ec.stopScraperJob(sId)
                 reqs[str(req_id)] = {'isActive': False}
                 return "Prometheus job not created aborting", 403
-        
+
             # print("pj=\""+ str(pId)+ "\"")
             # print("sj=\""+ str(sId)+ "\"")
             reqs[str(req_id)]['prometheusJob'] = pId
-        #print("ok")
+            '''
+            if model_forecasting == "convRAM":
+                pId2 = ec.startPrometheusJob(vnfdid+"__tot", nsid, scraping_period, req_id)
+                if pId2 is not None:
+                   # print("Prometheus job "+ str(pId)+ " started")
+                   log.info('Forecasting API: Prometheus job ' + pId2 + ' created')
+                else:
+                   log.info('Forecasting API: Error creating additional Prometheus job ')
+                reqs[str(req_id)]['other_prometheusJob'] = pId2
+            '''
         return str(req_id), 200
 
     @staticmethod
     def get():
         global reqs
         reply = list(reqs.keys())
-        print(reply)
+        #print(reply)
         return json.dumps(reply), 200
 
 
@@ -507,7 +559,7 @@ class _ForecastingSetIL(Resource):
         global reqs
         if str(job_id) in reqs.keys():
             oldIL = reqs[str(job_id)].get('IL')
-            log.debug("Forecasting API: {} instances detected".format(str(ilv)))
+            log.info("Forecasting API: {} instances detected".format(str(oldIL)))
             '''
                     reqs[str(req_id)] = {'nsId': nsid, 'vnfdId': vnfdid, 'IL': 0, 'nsdId': nsdid, 'instance_name': "",
                              'performanceMetric': None, 'isActive': True, 'scraperJob': [],
@@ -528,39 +580,85 @@ class _ForecastingSetIL(Resource):
             topic = reqs[str(job_id)]['kafkaTopic']
 
             vnfdid = reqs[str(job_id)]['vnfdId']
+            '''
+                        log.debug('Forecasting API: Single instance detected')
+            fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
+            log.debug('Forecasting API: forecasting job created ' + fj.str())
+            steps_back = 130
+            steps_forw = 1
+            #modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
+            #features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
+            if model_forecasting == "lstmCPUEnhanced":
+               modelName = 'trainedModels/lstm5sec.h5'
+               features = ['r_a1', 'r_a2']
+               main_feature = 'cpu0'
+            elif model_forecasting == "convRAM":
+               #modelName = 'trainedModels/convRAM_30.h5'
+               modelName = 'trainedModels/convRAM_130.h5'
+               #steps_back = 150
+               steps_back = 130
+               features = ['r_a1', 'r_a2']
+               #features = []
+               main_feature = 'memory_free'
+            else:
+               features = ['r_a1', 'r_a2']
+               main_feature = 'cpu0'
+            fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
+            event = Event()
+            t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
+            t.start()
+            active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
+            reqs[str(req_id)]['instance_name'] = instances[0]
 
+            '''
             if oldIL < il:
                 log.info("Scaling up the forecastng jobs for nsid {} and metric {}".format(nsdid, metric))
                 instance = vnfdid + '-' + str(il)
                 fj = ForecastingJob(job_id, nsdid, model_forecasting, metric, il, instance)
-                steps_back = 10
-                steps_forw = 4
-                modelName = 'trainedModels/lstmdiff' + str(steps_back) + '_' + str(steps_forw) + '.h5'
-                features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
-                main_feature = 'cpu0'
+                steps_back = 130
+                steps_forw = 1
+                if model_forecasting == "lstmCPUEnhanced":
+                    modelName = 'trainedModels/lstm5sec.h5'
+                    features = ['r_a1', 'r_a2']
+                    main_feature = 'cpu0'
+                elif model_forecasting == "convRAM":
+                    modelName = 'trainedModels/convRAM_130.h5'
+                    steps_back = 130
+                    features = ['r_a1', 'r_a2']
+                    main_feature = 'memory_free'
+                else:
+                    features = ['r_a1', 'r_a2']
+                    main_feature = 'cpu0'
+                    steps_back = 10
+                    steps_forw = 4
+                log.info("Forecasting API: model preparation --- features={}, main_feature={}, model={}, steps_back={}".format(features,
+                     main_feature, model_forecasting, steps_back))
                 fj.set_model(steps_back, steps_forw, True, modelName, save, features, main_feature)
+                
                 event = Event()
                 t = Thread(target=fj.run, args=(event, ec.createKafkaConsumer(il, topic), False))
                 t.start()
-                log.debug('Forecasting API: sub forecasting job created ' + fj.str())
+                log.info('Forecasting API: sub forecasting job created ' + fj.str())
 
                 # disabling the data acquisition from other jobs and get robots already configured
                 # active_jobs[str(req_id)] = {'thread': t, 'job': fj, 'kill_event': event, 'subJobs': {}}
                 #print(active_jobs[str(job_id)]['job'].get_robots())
-                active_robs = []
-                active_robs = active_robs + active_jobs[str(job_id)]['job'].get_robots()
-                active_jobs[str(job_id)]['job'].set_update_robots(False)
-                log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['job'].instance_name))
-                log.debug("Scaling, active robots: {} ".format(active_robs))
-                for instance in active_jobs[str(job_id)]['subJobs'].keys():
-                    active_robs = active_robs + active_jobs[str(job_id)]['subJobs'][instance]['job'].get_robots()
-                    active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(False)
-                    log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['subJobs'][instance]['job'].instance_name))
-                log.debug("Scaling, active robots: {} ".format(active_robs))
+                if model_forecasting == "lstmCPUEnhanced":
+                    active_robs = []
+                    active_robs = active_robs + active_jobs[str(job_id)]['job'].get_robots()
+                    active_jobs[str(job_id)]['job'].set_update_robots(False)
+                    log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['job'].instance_name))
+                    log.debug("Scaling, active robots: {} ".format(active_robs))
+                    for instance in active_jobs[str(job_id)]['subJobs'].keys():
+                        active_robs = active_robs + active_jobs[str(job_id)]['subJobs'][instance]['job'].get_robots()
+                        active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(False)
+                        log.debug("Stopping robot update for instance {} ".format(active_jobs[str(job_id)]['subJobs'][instance]['job'].instance_name))
+                    log.debug("Scaling, active robots: {} ".format(active_robs))
 
                 #adding the new subjob
                 active_jobs[str(job_id)]['subJobs'][instance] = {'thread': t, 'job': fj, 'kill_event': event}
-                fj.set_other_robots(active_robs)
+                if model_forecasting == "lstmCPUEnhanced":
+                    fj.set_other_robots(active_robs)
 
             if oldIL > il:
                 if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
@@ -571,11 +669,12 @@ class _ForecastingSetIL(Resource):
                     event = sjob.get('kill_event')
                     event.set()
                     thread.join()
-                    del active_jobs[str(job_id)]['subJobs'][instanceold]
-                    if instance in active_jobs[str(job_id)]['subJobs'].keys():
-                        active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(True)
-                    else:
-                        active_jobs[str(job_id)]['job'].set_update_robots(True)
+                    if model_forecasting == "lstmCPUEnhanced":
+                        del active_jobs[str(job_id)]['subJobs'][instanceold]
+                        if instance in active_jobs[str(job_id)]['subJobs'].keys():
+                            active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(True)
+                        else:
+                            active_jobs[str(job_id)]['job'].set_update_robots(True)
 
             log.info('Forecasting API: IL for job ' + job_id + ' updated to value ' + str(il))
             return 'Instantiation level updated', 200
@@ -603,8 +702,32 @@ class _Robots(Resource):
                 break
         if not is_exists:
             return 'Forecasting job not found', 404
-        f = active_jobs[str(job_id)].get('job')
-        f.set_robots(int(r1), int(r2))
+       
+        if len(active_jobs[str(job_id)]['subJobs'].keys()) == 0:
+            #if no sunjobs robots assigned to the main instance
+            f = active_jobs[str(job_id)].get('job')
+            f.set_robots(int(r1), int(r2))
+        
+        else:
+            #if sunjobs robots assigned to the last instance
+            f = active_jobs[str(job_id)].get('job')
+            (mf_r1, mf_r2) = f.get_num_robots()
+            #remove the robots of the main instance
+            keys = list(active_jobs[str(job_id)]['subJobs'].keys())
+            ur1 = int(r1) - mf_r1
+            ur2 = int(r2) - mf_r2
+            #and remove the robots assigned to the other sub instances
+            if len(keys) > 1:
+                for val_instance in range(0, len(keys)-1):
+                    instance = keys[val_instance]
+                    fx = active_jobs[str(job_id)]['subJobs'][instance].get('job')
+                    (fx_r1, fx_r2) = fx.get_num_robots()
+                    ur1 = ur1 - fx_r1
+                    ur2 = ur2 - fx_r2
+            instance = keys[len(keys)-1]
+            sf = active_jobs[str(job_id)]['subJobs'][instance].get('job')
+            sf.set_robots(int(ur1), int(ur2))
+        
         return 'Robots updated', 200
 
 
@@ -619,7 +742,6 @@ class _PrometheusExporter(Resource):
         global data
         global active_jobs
         global reqs
-        global testForecasting
         log.info('Prometeheus Exporter: new metric request for nsid=' + nsid + ' and vnfdid=' + vnfd_id)
 
         is_exists = False
@@ -643,126 +765,120 @@ class _PrometheusExporter(Resource):
             value = f.get_forecasting_value(5, 2)
         elif f.get_model() == "lstmCPUEnhanced":
             value = f.get_forecasting_value(10, 4)
+        elif f.get_model() == "convRAM":
+            metric2 = "node_memory_MemTotal_bytes"
+            value = f.get_forecasting_value(10, 4)
+            value2 = f.get_t0(metric2)
+            log.debug("memTotal = {}".format(value2))
         metric = reqs[str(job_id)].get('performanceMetric')
-        if testForecasting == 0:
-            # creating replicas for the average data
-            if "cpu" or "CPU" or "Cpu" in metric:
-                names = f.get_names()
-                #print(names)
-                for instance in names.keys():
-                    for c in range(0, len(names[instance]['cpus'])):
-                        cpu = str(names[instance]['cpus'][c])
-                        mode = str(names[instance]['modes'][c])
-                        timestamp = str(names[instance]['timestamp'][c])
-                        return_data = {
-                            'job': job_id,
-                            'metric': metric,
-                            'name': instance,
-                            'cpu': cpu,
-                            'mode': mode,
-                            'timestamp': round(float(timestamp), 2) + 15.0,
-                            str(metric): value
-                        }
+        log.debug("metric = {}".format(metric))
+        # creating replicas for the average data
+        names = f.get_names()
+        if "cpu" in metric or "CPU" in metric or "Cpu" in metric:
+            log.debug("inside CPU names= {} ".format(names))
+            for instance in names.keys():
+                for c in range(0, len(names[instance]['cpus'])):
+                    cpu = str(names[instance]['cpus'][c])
+                    mode = str(names[instance]['modes'][c])
+                    timestamp = str(names[instance]['timestamp'][c])
+                    return_data = {
+                        'job': job_id,
+                        'metric': metric,
+                        'name': instance,
+                        'cpu': cpu,
+                        'mode': mode,
+                        'timestamp': round(float(timestamp), 2) + 15.0,
+                        str(metric): value
+                    }
 
-                        return_data_str = json.dumps(return_data)
-                        json_obj2 = json.loads(return_data_str)
-                        if json_obj2['job'] not in data.keys():
-                            data[jobid] = multiprocessing.Queue()
-                        # print(return_data_str)
-                        data[jobid].put(json_obj2)
-                        # print("push")
-                        # print(data[id].qsize())
-        else:
-            if "cpu" or "CPU" or "Cpu" in metric:
-                names = f.get_names()
-                # print(names)
-                for instance in names.keys():
-                    for c in range(0, len(names[instance]['cpus'])):
-                        cpu = str(names[instance]['cpus'][c])
-                        mode = str(names[instance]['modes'][c])
-                        timestamp = str(names[instance]['timestamp'][c])
-                        curr_val = names[instance]['values'][c]
-                        return_data = {
-                            'job': job_id,
-                            'metric': metric,
-                            'name': instance,
-                            'cpu': cpu,
-                            'mode': mode,
-                            'timestamp': round(float(timestamp), 2) + 15.0,
-                            'input': "no",
-                            str(metric): value
-                        }
+                    return_data_str = json.dumps(return_data)
+                    json_obj2 = json.loads(return_data_str)
+                    if json_obj2['job'] not in data.keys():
+                        data[jobid] = multiprocessing.Queue()
+                    # print(return_data_str)
+                    data[jobid].put(json_obj2)
+                    # print("push")
+                    # print(data[id].qsize())
+        if "memory_MemFree" in metric:
+            log.debug("inside RAM names= {} ".format(names))
+            for instance in names.keys():
+                return_data = {
+                    'job': job_id,
+                    'name': instance,
+                    'metric': metric,
+                    str(metric): value,
+                    str(metric2): value2
+                    }
+                return_data_str = json.dumps(return_data)
+                json_obj2 = json.loads(return_data_str)
+                if json_obj2['job'] not in data.keys():
+                    data[jobid] = multiprocessing.Queue()
+                # print(return_data_str)
+                data[jobid].put(json_obj2)
 
-                        return_data_str = json.dumps(return_data)
-                        json_obj2 = json.loads(return_data_str)
-                        if json_obj2['job'] not in data.keys():
-                            data[jobid] = multiprocessing.Queue()
-                        # print(return_data_str)
-                        data[jobid].put(json_obj2)
-                        return_data = {
-                            'job': job_id,
-                            'metric': metric,
-                            'name': instance,
-                            'cpu': cpu,
-                            'mode': mode,
-                            'timestamp': round(float(timestamp), 2) + 15.0,
-                            'input': "yes",
-                            str(metric): round(float(curr_val), 2)
-                        }
-
-                        return_data_str = json.dumps(return_data)
-                        json_obj2 = json.loads(return_data_str)
-                        if json_obj2['job'] not in data.keys():
-                            data[jobid] = multiprocessing.Queue()
-                        # print(return_data_str)
-                        data[jobid].put(json_obj2)
-                        # print("push")
-                        # print(data[id].qsize())
-
+        
         #subjobs
+        #todo check with ram
         if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
             sfjs = active_jobs[str(job_id)]['subJobs']
             for instance in sfjs.keys():
                 value = 0
-                f = active_jobs[str(job_id)]['subJobs'][instance]['job']
-                if f.get_model() == "Test":
+                f1 = active_jobs[str(job_id)]['subJobs'][instance]['job']
+                if f1.get_model() == "Test":
                     value = f.get_forecasting_value(None)
-                elif f.get_model() == "lstmCPUBase":
+                elif f1.get_model() == "lstmCPUBase":
                     value = f.get_forecasting_value(5, 2)
-                elif f.get_model() == "lstmCPUEnhanced":
+                elif f1.get_model() == "lstmCPUEnhanced":
                     value = f.get_forecasting_value(10, 1)
                     log.info("5GrAPI: the fprecasting value is {}".format(value))
+                elif f1.get_model() == "convRAM":
+                    metric2 = "node_memory_MemTotal_bytes"
+                    value = f1.get_forecasting_value(10, 4)
+                    value2 = f1.get_t0(metric2)
+                    log.debug("memTotal = {}".format(value2))
+
                 metric = reqs[str(job_id)].get('performanceMetric')
-                if testForecasting == 0:
-                    # creating replicas for the average data
-                    if "cpu" or "CPU" or "Cpu" in metric:
-                        names = f.get_names()
-                        #print(names)
-                        for instancex in names.keys():
-                            for c in range(0, len(names[instancex]['cpus'])):
-                                cpu = str(names[instancex]['cpus'][c])
-                                mode = str(names[instancex]['modes'][c])
-                                timestamp = str(names[instancex]['timestamp'][c])
-                                return_data = {
-                                    'job': job_id,
-                                    'metric': metric,
-                                    'name': instance,
-                                    'cpu': cpu,
-                                    'mode': mode,
-                                    'timestamp': round(float(timestamp), 2) + 15.0,
-                                    str(metric): value
-                                }
+                # creating replicas for the average data
+                names = f1.get_names()    
+                if "cpu" in metric or "CPU" in metric or "Cpu" in metric:
+                    log.debug("inside CPU names= {} ".format(names))
+                    for instancex in names.keys():
+                        for c in range(0, len(names[instancex]['cpus'])):
+                            cpu = str(names[instancex]['cpus'][c])
+                            mode = str(names[instancex]['modes'][c])
+                            timestamp = str(names[instancex]['timestamp'][c])
+                            return_data = {
+                                'job': job_id,
+                                'metric': metric,
+                                'name': instance,
+                                'cpu': cpu,
+                                'mode': mode,
+                                'timestamp': round(float(timestamp), 2) + 15.0,
+                                str(metric): value
+                            }
 
-                                return_data_str = json.dumps(return_data)
-                                json_obj2 = json.loads(return_data_str)
-                                if json_obj2['job'] not in data.keys():
-                                    data[jobid] = multiprocessing.Queue()
-                                # print(return_data_str)
-                                data[jobid].put(json_obj2)
-                                # print("push")
-                                # print(data[id].qsize())
-
-
+                            return_data_str = json.dumps(return_data)
+                            json_obj2 = json.loads(return_data_str)
+                            if json_obj2['job'] not in data.keys():
+                                data[jobid] = multiprocessing.Queue()
+                            # print(return_data_str)
+                            data[jobid].put(json_obj2)
+                if "memory_MemFree" in metric:
+                    log.debug("inside RAM names= {} ".format(names))
+                    for instance in names.keys():
+                        return_data = {
+                        'job': job_id,
+                        'name': instance,
+                        'metric': metric,
+                        str(metric): value,
+                        str(metric2): value2
+                            }
+                        return_data_str = json.dumps(return_data)
+                        json_obj2 = json.loads(return_data_str)
+                        if json_obj2['job'] not in data.keys():
+                           data[jobid] = multiprocessing.Queue()
+                        # print(return_data_str)
+                        data[jobid].put(json_obj2)
         time.sleep(0.1)
         cc.set_parameters(jobid)
         reply = generate_latest(REGISTRY)
