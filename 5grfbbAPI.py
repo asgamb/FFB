@@ -702,12 +702,24 @@ class _Robots(Resource):
                 break
         if not is_exists:
             return 'Forecasting job not found', 404
-       
+        if str(job_id) in active_jobs.keys():
+          if int(r1) == 0 and int(r2) == 0:
+            if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
+              for inst in active_jobs[str(job_id)]['subJobs'].keys():
+                sjob = active_jobs[str(job_id)]['subJobs'][inst]
+                thread = sjob.get('thread')
+                event = sjob.get('kill_event')
+                event.set()
+                thread.join()
+            f = active_jobs[str(job_id)].get('job')
+            f.set_robots(int(r1), int(r2))
+            return 'System reset and subjobs stopped', 200
+        else:
+            return 'Job not found', 404
         if len(active_jobs[str(job_id)]['subJobs'].keys()) == 0:
             #if no sunjobs robots assigned to the main instance
             f = active_jobs[str(job_id)].get('job')
             f.set_robots(int(r1), int(r2))
-        
         else:
             #if sunjobs robots assigned to the last instance
             f = active_jobs[str(job_id)].get('job')

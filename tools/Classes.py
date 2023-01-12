@@ -168,7 +168,7 @@ class ForecastingJob:
 
     def data_parser2(self, json_data):
         loaded_json = json.loads(json_data)
-        log.debug(self.instance_name + ": forecasting Job: received data: \n{}".format(loaded_json))
+        log.info(self.instance_name + ": forecasting Job: received data: \n{}".format(loaded_json))
         names = {}
         if self.model == "lstmCPUEnhanced":
             loaded_json = json.loads(json_data)
@@ -296,7 +296,7 @@ class ForecastingJob:
                           if 'memfv' not in self.temp.keys():
                              self.temp['memfv'] = []
                           self.temp['memfv'].append(val)
-                          log.debug(self.instance_name + ": Feee memory message received = {}".format(str(val)))
+                          log.info(self.instance_name + ": Feee memory message received = {}".format(str(val)))
                           self.set_temp['node_memory_MemFree_bytes'] = True
                           if instance not in names.keys():
                               names[instance] = True
@@ -307,7 +307,7 @@ class ForecastingJob:
                              self.set_t0[m] = True
                           if instance not in names.keys():
                               names[instance] = True
-                          log.debug(self.instance_name + ": Total memory message received = {}".format(str(val)))
+                          log.info(self.instance_name + ": Total memory message received = {}".format(str(val)))
             self.names = names
                      
             self.inject_dataRAM()
@@ -775,11 +775,12 @@ class ForecastingJob:
     '''
 
     def inject_dataRAM(self):
-        #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
-        #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
-        if len(self.set_temp.keys()) > 0:
+      #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
+      #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
+      if len(self.set_temp.keys()) > 0:
+        if 'node_memory_MemFree_bytes' in self.set_temp.keys():
           if self.set_temp['node_memory_MemFree_bytes']:
-            log.debug("RAM data received\n")
+            log.info("RAM data received\n")
             temp1 = self.temp.copy()
             log.debug("temp1 copy \n{}".format(temp1))
             if 'memfv' in temp1.keys():
@@ -830,9 +831,10 @@ class ForecastingJob:
 
 
     def inject_dataCPU(self):
-        #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
-        #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
-        if self.set_temp['node_cpu_seconds_total']:
+       #if self.set_temp['node_cpu_seconds_total'] and self.set_temp['rtt_latency'] and \
+       #        self.set_temp['cmd_sent'] and self.set_temp['cmd_lost']:
+       if 'node_cpu_seconds_total' in self.set_temp.keys():
+          if self.set_temp['node_cpu_seconds_total']:
             log.debug("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXAll data received\n")
             temp1 = self.temp.copy()
             log.debug("temp1 copy \n{}".format(temp1))
