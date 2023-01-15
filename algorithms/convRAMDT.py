@@ -244,8 +244,8 @@ class lstmramdt:
         log.info("LSTM: Loading the lstm model from file {}".format(filename))
         self.model = load_model(filename)
         if "memory_free" in self.main_feature:
-            self.mmscaler = joblib.load("trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward = forward))
-            self.mmscaler_ram = joblib.load("trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward = forward))
+            self.mmscaler = joblib.load("trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward))
+            self.mmscaler_ram = joblib.load("trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward))
         return self.model
 
     def predict(self, db):
@@ -323,8 +323,8 @@ class lstmramdt:
             #            temp]), columns=replica)
 
             # save scaler for future use
-            joblib.dump(self.mmscaler, "trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward = forward))
-            joblib.dump(self.mmscaler_ram, "trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward = forward))
+            joblib.dump(self.mmscaler, "trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward))
+            joblib.dump(self.mmscaler_ram, "trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward))
 
         else:
             temp = pandas.DataFrame()
