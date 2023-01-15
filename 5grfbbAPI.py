@@ -398,7 +398,7 @@ class _Forecasting(Resource):
             fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
             log.debug('Forecasting API: forecasting job created ' + fj.str())
             steps_back = 130
-            steps_forw = 1
+            steps_forw = 14
             #modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
             #features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
             if model_forecasting == "lstmCPUEnhanced":
@@ -406,8 +406,8 @@ class _Forecasting(Resource):
                features = ['r_a1', 'r_a2']
                main_feature = 'cpu0'
             elif model_forecasting == "convRAM":
-               modelName = 'trainedModels/convRAM_130.h5'
-               steps_back = 130
+               #modelName = 'trainedModels/convRAM_130_14.h5'
+               modelName = "trainedModels/convRAM_{}_{}.h5".format(steps_back, steps_forw)
                features = ['r_a1', 'r_a2']
                main_feature = 'memory_free'
             else:
@@ -622,7 +622,8 @@ class _ForecastingSetIL(Resource):
                     features = ['r_a1', 'r_a2']
                     main_feature = 'cpu0'
                 elif model_forecasting == "convRAM":
-                    modelName = 'trainedModels/convRAM_130.h5'
+                    modelName = "trainedModels/convRAM_{}_{}.h5".format(steps_back, steps_forw)
+                    #modelName = 'trainedModels/convRAM_130.h5'
                     steps_back = 130
                     features = ['r_a1', 'r_a2']
                     main_feature = 'memory_free'
@@ -779,7 +780,7 @@ class _PrometheusExporter(Resource):
             value = f.get_forecasting_value(10, 4)
         elif f.get_model() == "convRAM":
             metric2 = "node_memory_MemTotal_bytes"
-            value = f.get_forecasting_value(10, 4)
+            value = f.get_forecasting_value(10, 14)
             value2 = f.get_t0(metric2)
             log.debug("memTotal = {}".format(value2))
         metric = reqs[str(job_id)].get('performanceMetric')

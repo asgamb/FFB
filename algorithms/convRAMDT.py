@@ -67,9 +67,10 @@ class lstmramdt:
         self.main_feature = main_feature
         self.scaler_db ={}
 
+    '''
     def split_sequences(self, dataset, target, start, end, window, horizon):
          # all features, main feature, 0, None, 10, 1
-         future = 3
+         future = 0
          X = []
          y = []
          start = start + window
@@ -80,6 +81,24 @@ class lstmramdt:
              X.append(dataset[indices])
              #prendo la quarta y -> y(t+4)
              indicey = range(i+future, i+future+horizon)
+             y.append(target[indicey])
+            
+             
+         return np.array(X), np.array(y)
+    '''
+
+    def split_sequences(self, dataset, target, start, end, window, horizon):
+         # all features, main feature, 0, None, 10, 1
+         X = []
+         y = []
+         start = start + window
+         if end is None:
+             end = len(dataset) - horizon
+         for i in range(start, end):
+             indices = range(i-window, i)
+             X.append(dataset[indices])
+             #prendo la quarta y -> y(t+4)
+             indicey = range(i, i+horizon)
              y.append(target[indicey])
             
              
@@ -142,7 +161,9 @@ class lstmramdt:
         
         #self.model.add(Dense(10, activation='relu'))
 
-        self.model.add(Dense(units=self.look_forward,activation='linear'))
+        #Andrea delted units=self.look_forward
+        #self.model.add(Dense(units=self.look_forward,activation='linear'))
+        self.model.add(Dense(units=1,activation='linear'))
         
         self.model.compile(loss='mean_squared_logarithmic_error', optimizer=opt, metrics=['mean_squared_logarithmic_error'])
         #checkpoint_filepath = 'checkpoint'
@@ -223,8 +244,8 @@ class lstmramdt:
         log.info("LSTM: Loading the lstm model from file {}".format(filename))
         self.model = load_model(filename)
         if "memory_free" in self.main_feature:
-            self.mmscaler = joblib.load("trainedModels/conv_mmscaler_130")
-            self.mmscaler_ram = joblib.load("trainedModels/conv_mmscaler_ram_130")
+            self.mmscaler = joblib.load("trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward = forward))
+            self.mmscaler_ram = joblib.load("trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward = forward))
         return self.model
 
     def predict(self, db):
@@ -237,12 +258,10 @@ class lstmramdt:
         num = self.n_features + 1
         if data is not None:
             y_pred = self.model.predict(data.to_numpy().reshape([1, self.look_backward, num]))
-            #print(y_pred)
             #no scaling cpu
             y_pred_inv = self.mmscaler_ram.inverse_transform(y_pred)
             #log.info("len y pred inv {}".format(len(y_pred_inv)))
             return y_pred_inv
-            return y_pred
         else:
             return 0
 
@@ -304,8 +323,8 @@ class lstmramdt:
             #            temp]), columns=replica)
 
             # save scaler for future use
-            joblib.dump(self.mmscaler, "trainedModels/conv_mmscaler_130")
-            joblib.dump(self.mmscaler_ram, "trainedModels/conv_mmscaler_ram_130")
+            joblib.dump(self.mmscaler, "trainedModels/conv_mmscaler_{}_{}".format(self.look_backward, self.look_forward = forward))
+            joblib.dump(self.mmscaler_ram, "trainedModels/conv_mmscaler_ram_{}_{}".format(self.look_backward, self.look_forward = forward))
 
         else:
             temp = pandas.DataFrame()

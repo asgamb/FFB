@@ -1136,7 +1136,7 @@ class ForecastingJob:
         return self.trained_model
 
     def load_model_dt(self, back, forward, filename):
-        log.debug(self.instance_name + ": forecasting Job, loading the LSTM enhanced forecasting model")
+        log.debug(self.instance_name + ": forecasting Job, loading the forecasting model")
 
         if self.model == "lstmCPUEnhanced":
             model = lstmcpudt(None, None, back, forward, None, self.features, self.main_feature)
