@@ -20,8 +20,8 @@ else:
 
 modelFile = 'trainedModels/lstm5sec.h5'
 #modelFile = 'trainedModels/lstm_120_4.h5'
-dataload = 'data/data_20robotsnh.csv'
-traindata = 'data/data_20robots.csv'
+dataload = 'data/ds_dtcontrolvnf-1_0-1_0.csv'
+traindata = 'data/ds_dtcontrolvnf-1_0.csv'
 
 fj = ForecastingJob("test", "test", "lstmCPUEnhanced", "node_cpu_seconds_total", il, "dtcontrolvnf-1", outTopic=None,
                     output=None)
