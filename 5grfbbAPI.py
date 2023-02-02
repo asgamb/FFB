@@ -398,7 +398,7 @@ class _Forecasting(Resource):
             fj = ForecastingJob(req_id, nsdid, model_forecasting, metric, il, instances[0])
             log.debug('Forecasting API: forecasting job created ' + fj.str())
             steps_back = 130
-            steps_forw = 14
+            steps_forw = 1
             #modelName = 'trainedModels/lstmdiff'+str(steps_back)+'_'+str(steps_forw)+'.h5'
             #features = ['avg_rtt_a1', 'avg_rtt_a2', 'avg_loss_a1', 'avg_loss_a2', 'r_a1', 'r_a2']
             if model_forecasting == "lstmCPUEnhanced":
@@ -407,6 +407,7 @@ class _Forecasting(Resource):
                main_feature = 'cpu0'
             elif model_forecasting == "convRAM":
                #modelName = 'trainedModels/convRAM_130_14.h5'
+               steps_forw = 20
                modelName = "trainedModels/convRAM_{}_{}.h5".format(steps_back, steps_forw)
                features = ['r_a1', 'r_a2']
                main_feature = 'memory_free'
