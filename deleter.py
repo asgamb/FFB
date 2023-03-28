@@ -11,6 +11,7 @@ monPort = 8989
 monUrl = "/prom-manager"
 kPort = 9092
 
+'''
 csvfname = "dataset/datiRAM.csv"
 
 clean = 1
@@ -20,6 +21,7 @@ startScraper = 0
 stopPJob = 1
 
 pj = "18458cf8-ba19-4db2-a88c-5ff9387ebdbb"
+'''
 
 #ec = ExternalConnections('configC.conf')
 ec = ExternalConnections('configC.conf')
@@ -39,7 +41,7 @@ Traceback (most recent call last):
 '''
 
 vnf = "dtcontrolvnf"
-nsd = "fgt-ef16443-ffc5-4f2c-b321-eff6c1eb03de"
+nsd = "fgt-babd411-3c51-4764-8563-1d5fb2b368fa"
 
 topic = nsd + "_forecasting"
 

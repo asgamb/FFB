@@ -288,9 +288,9 @@ class _Forecasting(Resource):
         # dynamic request_id creation
         # todo: development check with no mon platform
         if not devel:
-            #req_id = uuid.uuid1()
+            req_id = uuid.uuid1()
             #todo: fix for testing
-            req_id = "64189e60-6684-11ed-9f52-fa163e96b497"
+            #req_id = "64189e60-6684-11ed-9f52-fa163e96b497"
         else:
             # static id (only for development purpose)
             req_id = "1aa0c8e6-c26e-11eb-a8ba-782b46c1eefd"
@@ -407,7 +407,7 @@ class _Forecasting(Resource):
                main_feature = 'cpu0'
             elif model_forecasting == "convRAM":
                #modelName = 'trainedModels/convRAM_130_14.h5'
-               steps_forw = 20
+               steps_forw = 25
                modelName = "trainedModels/convRAM_{}_{}.h5".format(steps_back, steps_forw)
                features = ['r_a1', 'r_a2']
                main_feature = 'memory_free'
@@ -663,6 +663,9 @@ class _ForecastingSetIL(Resource):
                     fj.set_other_robots(active_robs)
 
             if oldIL > il:
+                log.info('Forecasting API: new IL for job ' + job_id + ' is lower than the previous, discarding the change')
+                return 'Instantiation level not updated', 200
+                '''
                 if len(active_jobs[str(job_id)]['subJobs'].keys()) > 0:
                     instanceold = vnfdid + '-' + str(oldIL)
                     instance = vnfdid + '-' + str(il)
@@ -671,13 +674,14 @@ class _ForecastingSetIL(Resource):
                     event = sjob.get('kill_event')
                     event.set()
                     thread.join()
-                    if model_forecasting == "lstmCPUEnhanced":
+                    if model_forecasting == "lstmCPUEnhanced" or model_forecasting == "convRAM":
                         del active_jobs[str(job_id)]['subJobs'][instanceold]
                         if instance in active_jobs[str(job_id)]['subJobs'].keys():
                             active_jobs[str(job_id)]['subJobs'][instance]['job'].set_update_robots(True)
                         else:
                             active_jobs[str(job_id)]['job'].set_update_robots(True)
 
+                '''
             log.info('Forecasting API: IL for job ' + job_id + ' updated to value ' + str(il))
             return 'Instantiation level updated', 200
         else:
